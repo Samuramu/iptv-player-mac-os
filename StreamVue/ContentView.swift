@@ -86,33 +86,29 @@ struct ContentView: View {
             }
         }
         .onChange(of: selectedCategory) { _, newCategory in
-            Task {
-                if let newCategory {
-                    if newCategory == "Favorites" {
-                        let favoriteIDs = Set(favorites.map(\.channelID))
-                        await providerManager.fetchChannels(category: nil)
-                        providerManager.channels = providerManager.channels.filter {
-                            favoriteIDs.contains($0.id)
-                        }
-                    } else {
-                        await providerManager.fetchChannels(category: newCategory)
+            if let newCategory {
+                if newCategory == "Favorites" {
+                    let favoriteIDs = Set(favorites.map(\.channelID))
+                    providerManager.fetchChannels(category: nil)
+                    providerManager.channels = providerManager.channels.filter {
+                        favoriteIDs.contains($0.id)
                     }
                 } else {
-                    providerManager.channels = []
+                    providerManager.fetchChannels(category: newCategory)
                 }
+            } else {
+                providerManager.channels = []
             }
         }
         .onChange(of: searchText) { _, newText in
-            Task {
-                if newText.isEmpty {
-                    if let selectedCategory {
-                        await providerManager.fetchChannels(category: selectedCategory)
-                    } else {
-                        providerManager.channels = []
-                    }
+            if newText.isEmpty {
+                if let selectedCategory {
+                    providerManager.fetchChannels(category: selectedCategory)
                 } else {
-                    await providerManager.searchChannels(text: newText)
+                    providerManager.channels = []
                 }
+            } else {
+                providerManager.searchChannels(text: newText)
             }
         }
     }
