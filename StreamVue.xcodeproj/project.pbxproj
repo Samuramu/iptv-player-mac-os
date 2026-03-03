@@ -1,0 +1,500 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000001 /* StreamVueApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000001; };
+		A10000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000002; };
+		A10000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000003; };
+		A10000004 /* Provider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000004; };
+		A10000005 /* Channel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000005; };
+		A10000006 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000006; };
+		A10000007 /* EPGProgram.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000007; };
+		A10000008 /* Favorite.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000008; };
+		A10000009 /* M3UParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000009; };
+		A10000010 /* XtreamService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010; };
+		A10000011 /* EPGParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000011; };
+		A10000012 /* ProviderManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000012; };
+		A10000013 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000013; };
+		A10000014 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000014; };
+		A10000015 /* ProviderRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000015; };
+		A10000016 /* CategoryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000016; };
+		A10000017 /* ChannelGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000017; };
+		A10000018 /* ChannelCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000018; };
+		A10000019 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000019; };
+		A10000020 /* PlayerOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000020; };
+		A10000021 /* PlayerContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000021; };
+		A10000022 /* EPGTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000022; };
+		A10000023 /* EPGProgramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000023; };
+		A10000024 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000024; };
+		A10000025 /* AddProviderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000025; };
+		A10000026 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000026; };
+		A10000027 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000027; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000 /* StreamVue.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StreamVue.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000001 /* StreamVueApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamVueApp.swift; sourceTree = "<group>"; };
+		A20000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A20000003 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A20000004 /* Provider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Provider.swift; sourceTree = "<group>"; };
+		A20000005 /* Channel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Channel.swift; sourceTree = "<group>"; };
+		A20000006 /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Category.swift; sourceTree = "<group>"; };
+		A20000007 /* EPGProgram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGProgram.swift; sourceTree = "<group>"; };
+		A20000008 /* Favorite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Favorite.swift; sourceTree = "<group>"; };
+		A20000009 /* M3UParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M3UParser.swift; sourceTree = "<group>"; };
+		A20000010 /* XtreamService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtreamService.swift; sourceTree = "<group>"; };
+		A20000011 /* EPGParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGParser.swift; sourceTree = "<group>"; };
+		A20000012 /* ProviderManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderManager.swift; sourceTree = "<group>"; };
+		A20000013 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
+		A20000014 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		A20000015 /* ProviderRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderRow.swift; sourceTree = "<group>"; };
+		A20000016 /* CategoryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryRow.swift; sourceTree = "<group>"; };
+		A20000017 /* ChannelGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelGridView.swift; sourceTree = "<group>"; };
+		A20000018 /* ChannelCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelCard.swift; sourceTree = "<group>"; };
+		A20000019 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
+		A20000020 /* PlayerOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerOverlayView.swift; sourceTree = "<group>"; };
+		A20000021 /* PlayerContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerContainerView.swift; sourceTree = "<group>"; };
+		A20000022 /* EPGTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGTimelineView.swift; sourceTree = "<group>"; };
+		A20000023 /* EPGProgramView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGProgramView.swift; sourceTree = "<group>"; };
+		A20000024 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A20000025 /* AddProviderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProviderView.swift; sourceTree = "<group>"; };
+		A20000026 /* KeyboardShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcuts.swift; sourceTree = "<group>"; };
+		A20000027 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+		A20000028 /* StreamVue.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StreamVue.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000 = {
+			isa = PBXGroup;
+			children = (
+				A40000001 /* StreamVue */,
+				A40000099 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A40000099 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000 /* StreamVue.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A40000001 /* StreamVue */ = {
+			isa = PBXGroup;
+			children = (
+				A20000001 /* StreamVueApp.swift */,
+				A20000002 /* ContentView.swift */,
+				A20000028 /* StreamVue.entitlements */,
+				A20000003 /* Assets.xcassets */,
+				A40000002 /* Models */,
+				A40000003 /* Services */,
+				A40000004 /* Views */,
+				A40000010 /* Utilities */,
+			);
+			path = StreamVue;
+			sourceTree = "<group>";
+		};
+		A40000002 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A20000004 /* Provider.swift */,
+				A20000005 /* Channel.swift */,
+				A20000006 /* Category.swift */,
+				A20000007 /* EPGProgram.swift */,
+				A20000008 /* Favorite.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A40000003 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A20000009 /* M3UParser.swift */,
+				A20000010 /* XtreamService.swift */,
+				A20000011 /* EPGParser.swift */,
+				A20000012 /* ProviderManager.swift */,
+				A20000013 /* ImageCache.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A40000004 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A40000005 /* Sidebar */,
+				A40000006 /* Channels */,
+				A40000007 /* Player */,
+				A40000008 /* EPG */,
+				A40000009 /* Settings */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A40000005 /* Sidebar */ = {
+			isa = PBXGroup;
+			children = (
+				A20000014 /* SidebarView.swift */,
+				A20000015 /* ProviderRow.swift */,
+				A20000016 /* CategoryRow.swift */,
+			);
+			path = Sidebar;
+			sourceTree = "<group>";
+		};
+		A40000006 /* Channels */ = {
+			isa = PBXGroup;
+			children = (
+				A20000017 /* ChannelGridView.swift */,
+				A20000018 /* ChannelCard.swift */,
+			);
+			path = Channels;
+			sourceTree = "<group>";
+		};
+		A40000007 /* Player */ = {
+			isa = PBXGroup;
+			children = (
+				A20000019 /* PlayerView.swift */,
+				A20000020 /* PlayerOverlayView.swift */,
+				A20000021 /* PlayerContainerView.swift */,
+			);
+			path = Player;
+			sourceTree = "<group>";
+		};
+		A40000008 /* EPG */ = {
+			isa = PBXGroup;
+			children = (
+				A20000022 /* EPGTimelineView.swift */,
+				A20000023 /* EPGProgramView.swift */,
+			);
+			path = EPG;
+			sourceTree = "<group>";
+		};
+		A40000009 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				A20000024 /* SettingsView.swift */,
+				A20000025 /* AddProviderView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		A40000010 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				A20000026 /* KeyboardShortcuts.swift */,
+				A20000027 /* Extensions.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000001 /* StreamVue */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A70000003 /* Build configuration list for PBXNativeTarget "StreamVue" */;
+			buildPhases = (
+				A60000001 /* Sources */,
+				A30000001 /* Frameworks */,
+				A60000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = StreamVue;
+			productName = StreamVue;
+			productReference = A20000000 /* StreamVue.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A50000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					A50000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = A70000001 /* Build configuration list for PBXProject "StreamVue" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A40000000;
+			productRefGroup = A40000099 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000001 /* StreamVue */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A60000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000003 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A60000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000001 /* StreamVueApp.swift in Sources */,
+				A10000002 /* ContentView.swift in Sources */,
+				A10000004 /* Provider.swift in Sources */,
+				A10000005 /* Channel.swift in Sources */,
+				A10000006 /* Category.swift in Sources */,
+				A10000007 /* EPGProgram.swift in Sources */,
+				A10000008 /* Favorite.swift in Sources */,
+				A10000009 /* M3UParser.swift in Sources */,
+				A10000010 /* XtreamService.swift in Sources */,
+				A10000011 /* EPGParser.swift in Sources */,
+				A10000012 /* ProviderManager.swift in Sources */,
+				A10000013 /* ImageCache.swift in Sources */,
+				A10000014 /* SidebarView.swift in Sources */,
+				A10000015 /* ProviderRow.swift in Sources */,
+				A10000016 /* CategoryRow.swift in Sources */,
+				A10000017 /* ChannelGridView.swift in Sources */,
+				A10000018 /* ChannelCard.swift in Sources */,
+				A10000019 /* PlayerView.swift in Sources */,
+				A10000020 /* PlayerOverlayView.swift in Sources */,
+				A10000021 /* PlayerContainerView.swift in Sources */,
+				A10000022 /* EPGTimelineView.swift in Sources */,
+				A10000023 /* EPGProgramView.swift in Sources */,
+				A10000024 /* SettingsView.swift in Sources */,
+				A10000025 /* AddProviderView.swift in Sources */,
+				A10000026 /* KeyboardShortcuts.swift in Sources */,
+				A10000027 /* Extensions.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A80000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A80000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		A80000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = StreamVue/StreamVue.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"StreamVue/Preview Content\"";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StreamVue/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.streamvue.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A80000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = StreamVue/StreamVue.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"StreamVue/Preview Content\"";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StreamVue/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.streamvue.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A70000001 /* Build configuration list for PBXProject "StreamVue" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A80000001 /* Debug */,
+				A80000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A70000003 /* Build configuration list for PBXNativeTarget "StreamVue" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A80000003 /* Debug */,
+				A80000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A50000000 /* Project object */;
+}
