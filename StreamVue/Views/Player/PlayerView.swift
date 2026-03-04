@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 import AVKit
+import IOKit.pwr_mgt
 
 struct PlayerView: NSViewRepresentable {
     let player: AVPlayer
@@ -65,6 +66,7 @@ final class PlayerState {
     var currentTime: Double = 0
     var duration: Double = 0
     var errorMessage: String?
+    var statusMessage: String?
     var streamInfo = StreamInfo()
     var subtitleOptions: [AVMediaSelectionOption] = []
     var selectedSubtitle: AVMediaSelectionOption?
@@ -74,7 +76,11 @@ final class PlayerState {
     private var timeObserver: Any?
     private var statusObservation: NSKeyValueObservation?
     private var bufferingObservation: NSKeyValueObservation?
+    private var bufferFullObservation: NSKeyValueObservation?
     private var rateObservation: NSKeyValueObservation?
+    private var stallTimer: Timer?
+    private var sleepAssertionID: IOPMAssertionID = 0
+    private var isSleepPrevented = false
 
     init() {
         player.automaticallyWaitsToMinimizeStalling = true
@@ -94,10 +100,13 @@ final class PlayerState {
         player.volume = volume
         player.play()
         isPlaying = true
+        isBuffering = true
         errorMessage = nil
+        statusMessage = "Connecting..."
         streamInfo = StreamInfo()
         subtitleOptions = []
         selectedSubtitle = nil
+        startStallTimer()
 
         observeItem(item)
     }
@@ -108,6 +117,7 @@ final class PlayerState {
 
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid stream URL"
+            statusMessage = nil
             return
         }
         play(url: url)
@@ -149,6 +159,10 @@ final class PlayerState {
         player.pause()
         player.replaceCurrentItem(with: nil)
         isPlaying = false
+        statusMessage = nil
+        isBuffering = false
+        cancelStallTimer()
+        allowSleep()
     }
 
     func setVolume(_ vol: Float) {
@@ -166,23 +180,61 @@ final class PlayerState {
     private func setupObservers() {
         rateObservation = player.observe(\.rate) { [weak self] player, _ in
             Task { @MainActor in
-                self?.isPlaying = player.rate > 0
+                let playing = player.rate > 0
+                self?.isPlaying = playing
+                if playing {
+                    self?.preventSleep()
+                } else {
+                    self?.allowSleep()
+                }
             }
         }
+    }
+
+    private func preventSleep() {
+        guard !isSleepPrevented else { return }
+        let reason = "StreamVue video playback" as CFString
+        let success = IOPMAssertionCreateWithName(
+            kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
+            IOPMAssertionLevel(kIOPMAssertionLevelOn),
+            reason,
+            &sleepAssertionID
+        )
+        isSleepPrevented = (success == kIOReturnSuccess)
+    }
+
+    private func allowSleep() {
+        guard isSleepPrevented else { return }
+        IOPMAssertionRelease(sleepAssertionID)
+        isSleepPrevented = false
     }
 
     private func observeItem(_ item: AVPlayerItem) {
         statusObservation?.invalidate()
         bufferingObservation?.invalidate()
+        bufferFullObservation?.invalidate()
 
         statusObservation = item.observe(\.status) { [weak self] item, _ in
             Task { @MainActor in
                 switch item.status {
                 case .readyToPlay:
+                    self?.statusMessage = "Preparing stream..."
                     self?.extractStreamInfo(from: item)
                     self?.extractSubtitles(from: item)
+                    // Clear status once actually playing
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if self?.isPlaying == true {
+                            self?.statusMessage = nil
+                            self?.isBuffering = false
+                            self?.cancelStallTimer()
+                        }
+                    }
                 case .failed:
-                    self?.errorMessage = item.error?.localizedDescription ?? "Playback failed"
+                    self?.cancelStallTimer()
+                    self?.isBuffering = false
+                    self?.statusMessage = nil
+                    let underlying = item.error?.localizedDescription ?? "Playback failed"
+                    self?.errorMessage = underlying
                     self?.isPlaying = false
                 default:
                     break
@@ -192,9 +244,37 @@ final class PlayerState {
 
         bufferingObservation = item.observe(\.isPlaybackBufferEmpty) { [weak self] item, _ in
             Task { @MainActor in
-                self?.isBuffering = item.isPlaybackBufferEmpty
+                if item.isPlaybackBufferEmpty {
+                    self?.isBuffering = true
+                    self?.statusMessage = "Buffering..."
+                }
             }
         }
+
+        bufferFullObservation = item.observe(\.isPlaybackLikelyToKeepUp) { [weak self] item, _ in
+            Task { @MainActor in
+                if item.isPlaybackLikelyToKeepUp {
+                    self?.isBuffering = false
+                    self?.statusMessage = nil
+                    self?.cancelStallTimer()
+                }
+            }
+        }
+    }
+
+    private func startStallTimer() {
+        cancelStallTimer()
+        stallTimer = Timer.scheduledTimer(withTimeInterval: 15.0, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.isBuffering, self.errorMessage == nil else { return }
+                self.statusMessage = "Stream is taking too long to respond"
+            }
+        }
+    }
+
+    private func cancelStallTimer() {
+        stallTimer?.invalidate()
+        stallTimer = nil
     }
 
     private func extractStreamInfo(from item: AVPlayerItem) {
@@ -265,11 +345,16 @@ final class PlayerState {
     }
 
     deinit {
+        stallTimer?.invalidate()
         statusObservation?.invalidate()
         bufferingObservation?.invalidate()
+        bufferFullObservation?.invalidate()
         rateObservation?.invalidate()
         if let timeObserver {
             player.removeTimeObserver(timeObserver)
+        }
+        if isSleepPrevented {
+            IOPMAssertionRelease(sleepAssertionID)
         }
     }
 }

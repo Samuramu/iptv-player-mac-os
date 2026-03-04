@@ -4,9 +4,9 @@ struct PlayerContainerView: View {
     let channel: Channel
     let channels: [Channel]
     @Binding var selectedChannel: Channel?
+    @Binding var isFullscreen: Bool
+    @Bindable var playerState: PlayerState
     var providerManager: ProviderManager
-
-    @State private var playerState = PlayerState()
 
     var body: some View {
         ZStack {
@@ -19,22 +19,29 @@ struct PlayerContainerView: View {
             )
             .ignoresSafeArea()
 
-            if playerState.isBuffering && playerState.errorMessage == nil {
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .tint(.white)
-            }
-
-            if let error = playerState.errorMessage {
-                VStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
+            if playerState.errorMessage != nil {
+                // Error state
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 40))
                         .foregroundStyle(.yellow)
-                    Text(error)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+
+                    Text("Unable to Play Stream")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+
+                    if let error = playerState.errorMessage {
+                        Text(error)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+
+                    Text(channel.name)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+
                     HStack(spacing: 12) {
                         Button("Retry") {
                             playerState.play(urlString: channel.streamURL)
@@ -45,7 +52,30 @@ struct PlayerContainerView: View {
                         }
                         .buttonStyle(.borderedProminent)
                     }
+                    .padding(.top, 4)
                 }
+                .padding(32)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+            } else if playerState.isBuffering {
+                // Buffering / connecting state
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .tint(.white)
+
+                    if let status = playerState.statusMessage {
+                        Text(status)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .transition(.opacity)
+                    }
+
+                    Text(channel.name)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(24)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
 
             PlayerOverlayView(
@@ -64,18 +94,10 @@ struct PlayerContainerView: View {
             onNextChannel: nextChannel,
             onPreviousChannel: previousChannel,
             onToggleFullscreen: toggleFullscreen,
+            onExitFullscreen: exitFullscreen,
             onVolumeUp: { playerState.setVolume(min(playerState.volume + 0.1, 1.0)) },
             onVolumeDown: { playerState.setVolume(max(playerState.volume - 0.1, 0.0)) }
         ))
-        .onAppear {
-            playerState.play(urlString: channel.streamURL)
-        }
-        .onChange(of: channel.id) { _, _ in
-            playerState.play(urlString: channel.streamURL)
-        }
-        .onDisappear {
-            playerState.stop()
-        }
     }
 
     private func nextChannel() {
@@ -91,7 +113,22 @@ struct PlayerContainerView: View {
     }
 
     private func toggleFullscreen() {
+        isFullscreen.toggle()
+
         if let window = NSApplication.shared.keyWindow {
+            if isFullscreen && !window.styleMask.contains(.fullScreen) {
+                window.toggleFullScreen(nil)
+            } else if !isFullscreen && window.styleMask.contains(.fullScreen) {
+                window.toggleFullScreen(nil)
+            }
+        }
+    }
+
+    private func exitFullscreen() {
+        guard isFullscreen else { return }
+        isFullscreen = false
+        if let window = NSApplication.shared.keyWindow,
+           window.styleMask.contains(.fullScreen) {
             window.toggleFullScreen(nil)
         }
     }

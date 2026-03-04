@@ -6,6 +6,7 @@ struct KeyboardShortcutHandler: NSViewRepresentable {
     let onNextChannel: () -> Void
     let onPreviousChannel: () -> Void
     let onToggleFullscreen: () -> Void
+    let onExitFullscreen: () -> Void
     let onVolumeUp: () -> Void
     let onVolumeDown: () -> Void
 
@@ -20,6 +21,7 @@ struct KeyboardShortcutHandler: NSViewRepresentable {
         context.coordinator.onNextChannel = onNextChannel
         context.coordinator.onPreviousChannel = onPreviousChannel
         context.coordinator.onToggleFullscreen = onToggleFullscreen
+        context.coordinator.onExitFullscreen = onExitFullscreen
         context.coordinator.onVolumeUp = onVolumeUp
         context.coordinator.onVolumeDown = onVolumeDown
     }
@@ -30,6 +32,7 @@ struct KeyboardShortcutHandler: NSViewRepresentable {
             onNextChannel: onNextChannel,
             onPreviousChannel: onPreviousChannel,
             onToggleFullscreen: onToggleFullscreen,
+            onExitFullscreen: onExitFullscreen,
             onVolumeUp: onVolumeUp,
             onVolumeDown: onVolumeDown
         )
@@ -40,6 +43,7 @@ struct KeyboardShortcutHandler: NSViewRepresentable {
         var onNextChannel: () -> Void
         var onPreviousChannel: () -> Void
         var onToggleFullscreen: () -> Void
+        var onExitFullscreen: () -> Void
         var onVolumeUp: () -> Void
         var onVolumeDown: () -> Void
 
@@ -48,6 +52,7 @@ struct KeyboardShortcutHandler: NSViewRepresentable {
             onNextChannel: @escaping () -> Void,
             onPreviousChannel: @escaping () -> Void,
             onToggleFullscreen: @escaping () -> Void,
+            onExitFullscreen: @escaping () -> Void,
             onVolumeUp: @escaping () -> Void,
             onVolumeDown: @escaping () -> Void
         ) {
@@ -55,6 +60,7 @@ struct KeyboardShortcutHandler: NSViewRepresentable {
             self.onNextChannel = onNextChannel
             self.onPreviousChannel = onPreviousChannel
             self.onToggleFullscreen = onToggleFullscreen
+            self.onExitFullscreen = onExitFullscreen
             self.onVolumeUp = onVolumeUp
             self.onVolumeDown = onVolumeDown
         }
@@ -76,13 +82,10 @@ struct KeyboardShortcutHandler: NSViewRepresentable {
             case 123: // Left arrow
                 onVolumeDown()
                 return true
-            case 53: // Escape
-                if let window = NSApplication.shared.keyWindow,
-                   window.styleMask.contains(.fullScreen) {
-                    window.toggleFullScreen(nil)
-                    return true
-                }
-            case 3: // F key
+            case 53: // Escape — only exits fullscreen, never enters
+                onExitFullscreen()
+                return true
+            case 3: // F key — toggles
                 onToggleFullscreen()
                 return true
             default:
