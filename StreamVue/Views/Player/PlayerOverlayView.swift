@@ -1,5 +1,4 @@
 import SwiftUI
-import AVFoundation
 
 struct PlayerOverlayView: View {
     let channel: Channel
@@ -102,7 +101,7 @@ struct PlayerOverlayView: View {
             // Subtitles button
             if !playerState.subtitleOptions.isEmpty {
                 Button(action: { showSubtitlePicker.toggle() }) {
-                    Image(systemName: playerState.selectedSubtitle != nil ? "captions.bubble.fill" : "captions.bubble")
+                    Image(systemName: playerState.selectedSubtitleIndex >= 0 ? "captions.bubble.fill" : "captions.bubble")
                         .font(.title3)
                         .padding(8)
                         .background(.ultraThinMaterial, in: Circle())
@@ -162,13 +161,13 @@ struct PlayerOverlayView: View {
             Divider()
 
             Button(action: {
-                playerState.selectSubtitle(nil)
+                playerState.selectSubtitle(-1)
                 showSubtitlePicker = false
             }) {
                 HStack {
                     Text("Off")
                     Spacer()
-                    if playerState.selectedSubtitle == nil {
+                    if playerState.selectedSubtitleIndex < 0 {
                         Image(systemName: "checkmark")
                     }
                 }
@@ -177,15 +176,15 @@ struct PlayerOverlayView: View {
             }
             .buttonStyle(.plain)
 
-            ForEach(playerState.subtitleOptions, id: \.self) { option in
+            ForEach(playerState.subtitleOptions, id: \.index) { option in
                 Button(action: {
-                    playerState.selectSubtitle(option)
+                    playerState.selectSubtitle(option.index)
                     showSubtitlePicker = false
                 }) {
                     HStack {
-                        Text(option.displayName)
+                        Text(option.name)
                         Spacer()
-                        if playerState.selectedSubtitle == option {
+                        if playerState.selectedSubtitleIndex == option.index {
                             Image(systemName: "checkmark")
                         }
                     }

@@ -87,6 +87,21 @@ struct PlayerContainerView: View {
                 onNextChannel: nextChannel,
                 onToggleFullscreen: toggleFullscreen
             )
+
+            // Debug overlay — shown when debug info is available
+            if let debug = playerState.debugInfo {
+                VStack(alignment: .leading) {
+                    Spacer()
+                    Text(debug)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.green)
+                        .padding(10)
+                        .background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 8))
+                        .padding(12)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .allowsHitTesting(false)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(KeyboardShortcutHandler(

@@ -1,30 +1,29 @@
 import SwiftUI
-import AVFoundation
-import AVKit
+import VLCKitSPM
 import IOKit.pwr_mgt
 
 struct PlayerView: NSViewRepresentable {
-    let player: AVPlayer
+    let player: VLCMediaPlayer
     let onDoubleClick: () -> Void
 
-    func makeNSView(context: Context) -> DoubleClickAVPlayerView {
-        let view = DoubleClickAVPlayerView()
-        view.player = player
-        view.controlsStyle = .none
-        view.showsFullScreenToggleButton = false
-        view.allowsPictureInPicturePlayback = false
-        view.videoGravity = .resizeAspect
+    func makeNSView(context: Context) -> DoubleClickVideoView {
+        let view = DoubleClickVideoView()
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.black.cgColor
         view.onDoubleClick = onDoubleClick
+        player.drawable = view
         return view
     }
 
-    func updateNSView(_ nsView: DoubleClickAVPlayerView, context: Context) {
-        nsView.player = player
+    func updateNSView(_ nsView: DoubleClickVideoView, context: Context) {
         nsView.onDoubleClick = onDoubleClick
+        if player.drawable as? NSView !== nsView {
+            player.drawable = nsView
+        }
     }
 }
 
-class DoubleClickAVPlayerView: AVPlayerView {
+class DoubleClickVideoView: NSView {
     var onDoubleClick: (() -> Void)?
 
     override func mouseDown(with event: NSEvent) {
@@ -58,8 +57,8 @@ struct StreamInfo {
 }
 
 @Observable
-final class PlayerState {
-    var player = AVPlayer()
+final class PlayerState: NSObject, VLCMediaPlayerDelegate {
+    var player = VLCMediaPlayer()
     var isPlaying = false
     var volume: Float = 1.0
     var isBuffering = false
@@ -67,52 +66,56 @@ final class PlayerState {
     var duration: Double = 0
     var errorMessage: String?
     var statusMessage: String?
+    var debugInfo: String?
     var streamInfo = StreamInfo()
-    var subtitleOptions: [AVMediaSelectionOption] = []
-    var selectedSubtitle: AVMediaSelectionOption?
+    var subtitleOptions: [(index: Int, name: String)] = []
+    var selectedSubtitleIndex: Int = -1
 
     private var currentURLString: String?
+    private var activeURLString: String?
     private var triedAlternate = false
-    private var timeObserver: Any?
-    private var statusObservation: NSKeyValueObservation?
-    private var bufferingObservation: NSKeyValueObservation?
-    private var bufferFullObservation: NSKeyValueObservation?
-    private var rateObservation: NSKeyValueObservation?
     private var stallTimer: Timer?
     private var sleepAssertionID: IOPMAssertionID = 0
     private var isSleepPrevented = false
+    private var hasReceivedVideoFrame = false
+    private var streamInfoExtracted = false
 
-    init() {
-        player.automaticallyWaitsToMinimizeStalling = true
-        setupObservers()
+    override init() {
+        super.init()
+        player.delegate = self
+        player.audio?.volume = 100
     }
 
     func play(url: URL) {
-        let asset = AVURLAsset(url: url, options: [
-            "AVURLAssetHTTPHeaderFieldsKey": [
-                "User-Agent": "Mozilla/5.0"
-            ]
-        ])
-        let item = AVPlayerItem(asset: asset)
-        item.preferredForwardBufferDuration = 10
+        // Stop current playback first
+        if player.isPlaying {
+            player.stop()
+        }
 
-        player.replaceCurrentItem(with: item)
-        player.volume = volume
+        let media = VLCMedia(url: url)
+        media.addOption(":network-caching=1500")
+        media.addOption(":http-user-agent=VLC/3.0.20 LibVLC/3.0.20")
+
+        player.media = media
+        player.audio?.volume = Int32(volume * 100)
         player.play()
+
         isPlaying = true
         isBuffering = true
         errorMessage = nil
         statusMessage = "Connecting..."
+        debugInfo = nil
         streamInfo = StreamInfo()
         subtitleOptions = []
-        selectedSubtitle = nil
+        selectedSubtitleIndex = -1
+        hasReceivedVideoFrame = false
+        streamInfoExtracted = false
         startStallTimer()
-
-        observeItem(item)
     }
 
     func play(urlString: String) {
         currentURLString = urlString
+        activeURLString = urlString
         triedAlternate = false
 
         guard let url = URL(string: urlString) else {
@@ -143,6 +146,7 @@ final class PlayerState {
         }
 
         guard let url = URL(string: alternate) else { return }
+        activeURLString = alternate
         play(url: url)
     }
 
@@ -156,8 +160,7 @@ final class PlayerState {
     }
 
     func stop() {
-        player.pause()
-        player.replaceCurrentItem(with: nil)
+        player.stop()
         isPlaying = false
         statusMessage = nil
         isBuffering = false
@@ -167,29 +170,101 @@ final class PlayerState {
 
     func setVolume(_ vol: Float) {
         volume = vol
-        player.volume = vol
+        player.audio?.volume = Int32(vol * 100)
     }
 
-    func selectSubtitle(_ option: AVMediaSelectionOption?) {
-        guard let item = player.currentItem,
-              let group = item.asset.mediaSelectionGroup(forMediaCharacteristic: .legible) else { return }
-        item.select(option, in: group)
-        selectedSubtitle = option
+    func selectSubtitle(_ index: Int) {
+        // -1 disables subtitles
+        player.currentVideoSubTitleIndex = Int32(index)
+        selectedSubtitleIndex = index
     }
 
-    private func setupObservers() {
-        rateObservation = player.observe(\.rate) { [weak self] player, _ in
-            Task { @MainActor in
-                let playing = player.rate > 0
-                self?.isPlaying = playing
-                if playing {
-                    self?.preventSleep()
-                } else {
-                    self?.allowSleep()
+    // MARK: - VLCMediaPlayerDelegate
+
+    @objc func mediaPlayerStateChanged(_ aNotification: Notification) {
+        Task { @MainActor in
+            guard let vlcPlayer = aNotification.object as? VLCMediaPlayer else { return }
+            let state = vlcPlayer.state
+
+            switch state {
+            case .playing:
+                isPlaying = true
+                isBuffering = false
+                statusMessage = nil
+                cancelStallTimer()
+                preventSleep()
+                if !streamInfoExtracted {
+                    extractStreamInfo()
+                    extractSubtitles()
+                    streamInfoExtracted = true
                 }
+
+            case .buffering:
+                isBuffering = true
+                statusMessage = "Buffering..."
+
+            case .paused:
+                isPlaying = false
+                allowSleep()
+
+            case .stopped:
+                isPlaying = false
+                isBuffering = false
+                allowSleep()
+
+            case .ended:
+                isPlaying = false
+                isBuffering = false
+                statusMessage = nil
+                allowSleep()
+
+            case .error:
+                isPlaying = false
+                isBuffering = false
+                cancelStallTimer()
+                statusMessage = nil
+                errorMessage = "Playback failed"
+                allowSleep()
+
+            case .opening:
+                isBuffering = true
+                statusMessage = "Opening stream..."
+
+            default:
+                break
             }
         }
     }
+
+    @objc func mediaPlayerTimeChanged(_ aNotification: Notification) {
+        Task { @MainActor in
+            guard let vlcPlayer = aNotification.object as? VLCMediaPlayer else { return }
+            let time = vlcPlayer.time
+            currentTime = Double(time.intValue) / 1000.0
+            if let media = vlcPlayer.media {
+                let len = media.length
+                if len.intValue > 0 {
+                    duration = Double(len.intValue) / 1000.0
+                }
+            }
+
+            // Once we get time updates, stream is definitely playing
+            if isBuffering {
+                isBuffering = false
+                statusMessage = nil
+                cancelStallTimer()
+            }
+
+            // Extract stream info once we have video output
+            if !streamInfoExtracted && vlcPlayer.hasVideoOut {
+                extractStreamInfo()
+                extractSubtitles()
+                streamInfoExtracted = true
+            }
+        }
+    }
+
+    // MARK: - Private
 
     private func preventSleep() {
         guard !isSleepPrevented else { return }
@@ -209,59 +284,6 @@ final class PlayerState {
         isSleepPrevented = false
     }
 
-    private func observeItem(_ item: AVPlayerItem) {
-        statusObservation?.invalidate()
-        bufferingObservation?.invalidate()
-        bufferFullObservation?.invalidate()
-
-        statusObservation = item.observe(\.status) { [weak self] item, _ in
-            Task { @MainActor in
-                switch item.status {
-                case .readyToPlay:
-                    self?.statusMessage = "Preparing stream..."
-                    self?.extractStreamInfo(from: item)
-                    self?.extractSubtitles(from: item)
-                    // Clear status once actually playing
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        if self?.isPlaying == true {
-                            self?.statusMessage = nil
-                            self?.isBuffering = false
-                            self?.cancelStallTimer()
-                        }
-                    }
-                case .failed:
-                    self?.cancelStallTimer()
-                    self?.isBuffering = false
-                    self?.statusMessage = nil
-                    let underlying = item.error?.localizedDescription ?? "Playback failed"
-                    self?.errorMessage = underlying
-                    self?.isPlaying = false
-                default:
-                    break
-                }
-            }
-        }
-
-        bufferingObservation = item.observe(\.isPlaybackBufferEmpty) { [weak self] item, _ in
-            Task { @MainActor in
-                if item.isPlaybackBufferEmpty {
-                    self?.isBuffering = true
-                    self?.statusMessage = "Buffering..."
-                }
-            }
-        }
-
-        bufferFullObservation = item.observe(\.isPlaybackLikelyToKeepUp) { [weak self] item, _ in
-            Task { @MainActor in
-                if item.isPlaybackLikelyToKeepUp {
-                    self?.isBuffering = false
-                    self?.statusMessage = nil
-                    self?.cancelStallTimer()
-                }
-            }
-        }
-    }
-
     private func startStallTimer() {
         cancelStallTimer()
         stallTimer = Timer.scheduledTimer(withTimeInterval: 15.0, repeats: false) { [weak self] _ in
@@ -277,42 +299,51 @@ final class PlayerState {
         stallTimer = nil
     }
 
-    private func extractStreamInfo(from item: AVPlayerItem) {
+    private func extractStreamInfo() {
         var info = StreamInfo()
 
-        for track in item.tracks {
-            guard let assetTrack = track.assetTrack else { continue }
+        let videoSize = player.videoSize
+        if videoSize.width > 0 && videoSize.height > 0 {
+            info.resolution = "\(Int(videoSize.width))x\(Int(videoSize.height))"
+        }
 
-            if assetTrack.mediaType == .video {
-                let size = assetTrack.naturalSize
-                info.resolution = "\(Int(size.width))x\(Int(size.height))"
+        // VLC provides codec info through media tracksInformation
+        if let media = player.media {
+            let tracks = media.tracksInformation
+            if let tracks = tracks as? [[String: Any]] {
+                for track in tracks {
+                    let type = track[VLCMediaTracksInformationType] as? String ?? ""
+                    let codec = track[VLCMediaTracksInformationCodec] as? Int ?? 0
+                    let codecStr = fourCCToString(UInt32(bitPattern: Int32(codec)))
 
-                let rate = assetTrack.nominalFrameRate
-                if rate > 0 {
-                    info.fps = String(format: "%.0f fps", rate)
-                }
-
-                let bitrate = assetTrack.estimatedDataRate
-                if bitrate > 0 {
-                    if bitrate > 1_000_000 {
-                        info.bitrate = String(format: "%.1f Mbps", bitrate / 1_000_000)
-                    } else {
-                        info.bitrate = String(format: "%.0f Kbps", bitrate / 1_000)
+                    if type == VLCMediaTracksInformationTypeVideo {
+                        info.videoCodec = codecStr
+                        if let w = track[VLCMediaTracksInformationVideoWidth] as? Int,
+                           let h = track[VLCMediaTracksInformationVideoHeight] as? Int, w > 0, h > 0 {
+                            info.resolution = "\(w)x\(h)"
+                        }
+                        if let rate = track[VLCMediaTracksInformationFrameRate] as? Int,
+                           let rateDen = track[VLCMediaTracksInformationFrameRateDenominator] as? Int, rateDen > 0 {
+                            let fps = Double(rate) / Double(rateDen)
+                            info.fps = String(format: "%.0f fps", fps)
+                        }
+                    } else if type == VLCMediaTracksInformationTypeAudio {
+                        info.audioCodec = codecStr
                     }
                 }
-
-                for desc in assetTrack.formatDescriptions {
-                    let formatDesc = desc as! CMFormatDescription
-                    let codec = CMFormatDescriptionGetMediaSubType(formatDesc)
-                    info.videoCodec = fourCCToString(codec)
-                }
             }
+        }
 
-            if assetTrack.mediaType == .audio {
-                for desc in assetTrack.formatDescriptions {
-                    let formatDesc = desc as! CMFormatDescription
-                    let codec = CMFormatDescriptionGetMediaSubType(formatDesc)
-                    info.audioCodec = fourCCToString(codec)
+        // Get bitrate from media statistics
+        if let media = player.media {
+            let stats = media.statistics
+            let bitrate = stats.demuxBitrate
+            if bitrate > 0 {
+                let bps = bitrate * 8
+                if bps > 1_000_000 {
+                    info.bitrate = String(format: "%.1f Mbps", bps / 1_000_000)
+                } else if bps > 1_000 {
+                    info.bitrate = String(format: "%.0f Kbps", bps / 1_000)
                 }
             }
         }
@@ -320,39 +351,52 @@ final class PlayerState {
         streamInfo = info
     }
 
-    private func extractSubtitles(from item: AVPlayerItem) {
-        if let group = item.asset.mediaSelectionGroup(forMediaCharacteristic: .legible) {
-            subtitleOptions = group.options
+    private func extractSubtitles() {
+        guard let subtitleNames = player.videoSubTitlesNames as? [String],
+              let subtitleIndexes = player.videoSubTitlesIndexes as? [NSNumber] else { return }
+
+        var options: [(index: Int, name: String)] = []
+        for (name, idx) in zip(subtitleNames, subtitleIndexes) {
+            let index = idx.intValue
+            if index == -1 { continue } // skip "Disable" entry
+            options.append((index: index, name: name))
         }
+        subtitleOptions = options
     }
 
-    private func fourCCToString(_ code: FourCharCode) -> String {
-        let mapping: [FourCharCode: String] = [
-            kCMVideoCodecType_H264: "H.264",
-            kCMVideoCodecType_HEVC: "HEVC",
-            kCMVideoCodecType_VP9: "VP9",
-            kCMVideoCodecType_AV1: "AV1",
+    private func fourCCToString(_ code: UInt32) -> String {
+        let knownCodecs: [UInt32: String] = [
+            0x68323634: "H.264",     // h264
+            0x48323634: "H.264",     // H264
+            0x61766331: "H.264",     // avc1
+            0x68657663: "HEVC",      // hevc
+            0x48455643: "HEVC",      // HEVC
+            0x68766331: "HEVC",      // hvc1
+            0x76703039: "VP9",       // vp09
+            0x56503039: "VP9",       // VP09
+            0x61763031: "AV1",       // av01
+            0x6D703461: "AAC",       // mp4a
+            0x61632D33: "AC-3",      // ac-3
+            0x65632D33: "E-AC-3",    // ec-3
+            0x6F707573: "Opus",      // opus
+            0x6D703361: "MP3",       // mp3a
         ]
-        if let name = mapping[code] { return name }
+        if let name = knownCodecs[code] { return name }
 
+        // Try to interpret as FourCC characters
         let chars: [Character] = [
             Character(UnicodeScalar((code >> 24) & 0xFF)!),
             Character(UnicodeScalar((code >> 16) & 0xFF)!),
             Character(UnicodeScalar((code >> 8) & 0xFF)!),
             Character(UnicodeScalar(code & 0xFF)!),
         ]
-        return String(chars).trimmingCharacters(in: .whitespaces)
+        let str = String(chars).trimmingCharacters(in: .whitespaces)
+        return str.isEmpty ? "Unknown" : str
     }
 
     deinit {
         stallTimer?.invalidate()
-        statusObservation?.invalidate()
-        bufferingObservation?.invalidate()
-        bufferFullObservation?.invalidate()
-        rateObservation?.invalidate()
-        if let timeObserver {
-            player.removeTimeObserver(timeObserver)
-        }
+        player.stop()
         if isSleepPrevented {
             IOPMAssertionRelease(sleepAssertionID)
         }
