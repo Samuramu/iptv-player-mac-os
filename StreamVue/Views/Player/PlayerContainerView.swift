@@ -14,13 +14,12 @@ struct PlayerContainerView: View {
                 .ignoresSafeArea()
 
             PlayerView(
-                player: playerState.player,
+                playerState: playerState,
                 onDoubleClick: toggleFullscreen
             )
             .ignoresSafeArea()
 
             if playerState.errorMessage != nil {
-                // Error state
                 VStack(spacing: 16) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 40))
@@ -57,7 +56,6 @@ struct PlayerContainerView: View {
                 .padding(32)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             } else if playerState.isBuffering {
-                // Buffering / connecting state
                 VStack(spacing: 12) {
                     ProgressView()
                         .scaleEffect(1.5)
@@ -87,21 +85,6 @@ struct PlayerContainerView: View {
                 onNextChannel: nextChannel,
                 onToggleFullscreen: toggleFullscreen
             )
-
-            // Debug overlay — shown when debug info is available
-            if let debug = playerState.debugInfo {
-                VStack(alignment: .leading) {
-                    Spacer()
-                    Text(debug)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.green)
-                        .padding(10)
-                        .background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 8))
-                        .padding(12)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .allowsHitTesting(false)
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(KeyboardShortcutHandler(
@@ -128,23 +111,17 @@ struct PlayerContainerView: View {
     }
 
     private func toggleFullscreen() {
-        isFullscreen.toggle()
-
-        if let window = NSApplication.shared.keyWindow {
-            if isFullscreen && !window.styleMask.contains(.fullScreen) {
-                window.toggleFullScreen(nil)
-            } else if !isFullscreen && window.styleMask.contains(.fullScreen) {
-                window.toggleFullScreen(nil)
-            }
+        if playerState.isInFullscreen {
+            exitFullscreen()
+        } else {
+            playerState.enterFullscreen()
+            isFullscreen = true
         }
     }
 
     private func exitFullscreen() {
-        guard isFullscreen else { return }
+        guard playerState.isInFullscreen else { return }
+        playerState.exitFullscreen()
         isFullscreen = false
-        if let window = NSApplication.shared.keyWindow,
-           window.styleMask.contains(.fullScreen) {
-            window.toggleFullScreen(nil)
-        }
     }
 }

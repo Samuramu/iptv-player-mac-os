@@ -3,23 +3,40 @@ import VLCKitSPM
 import IOKit.pwr_mgt
 
 struct PlayerView: NSViewRepresentable {
-    let player: VLCMediaPlayer
+    let playerState: PlayerState
     let onDoubleClick: () -> Void
 
-    func makeNSView(context: Context) -> DoubleClickVideoView {
-        let view = DoubleClickVideoView()
-        view.wantsLayer = true
-        view.layer?.backgroundColor = NSColor.black.cgColor
-        view.onDoubleClick = onDoubleClick
-        player.drawable = view
-        return view
+    func makeNSView(context: Context) -> PlayerHostView {
+        let host = PlayerHostView()
+        host.wantsLayer = true
+        host.layer?.backgroundColor = NSColor.black.cgColor
+        host.playerState = playerState
+        playerState.videoView.onDoubleClick = onDoubleClick
+        playerState.hostView = host
+        host.attachVideoView()
+        return host
     }
 
-    func updateNSView(_ nsView: DoubleClickVideoView, context: Context) {
-        nsView.onDoubleClick = onDoubleClick
-        if player.drawable as? NSView !== nsView {
-            player.drawable = nsView
-        }
+    func updateNSView(_ nsView: PlayerHostView, context: Context) {
+        playerState.videoView.onDoubleClick = onDoubleClick
+    }
+}
+
+class PlayerHostView: NSView {
+    weak var playerState: PlayerState?
+
+    func attachVideoView() {
+        guard let playerState, playerState.videoView.superview !== self else { return }
+        let vv = playerState.videoView
+        vv.removeFromSuperview()
+        vv.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(vv)
+        NSLayoutConstraint.activate([
+            vv.leadingAnchor.constraint(equalTo: leadingAnchor),
+            vv.trailingAnchor.constraint(equalTo: trailingAnchor),
+            vv.topAnchor.constraint(equalTo: topAnchor),
+            vv.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
     }
 }
 
@@ -33,6 +50,15 @@ class DoubleClickVideoView: NSView {
             super.mouseDown(with: event)
         }
     }
+
+    override var acceptsFirstResponder: Bool { true }
+}
+
+// MARK: - Fullscreen Window
+
+class FullscreenPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
 }
 
 struct StreamInfo {
@@ -59,6 +85,13 @@ struct StreamInfo {
 @Observable
 final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     var player = VLCMediaPlayer()
+    let videoView: DoubleClickVideoView = {
+        let v = DoubleClickVideoView()
+        v.wantsLayer = true
+        v.layer?.backgroundColor = NSColor.black.cgColor
+        return v
+    }()
+    weak var hostView: PlayerHostView?
     var isPlaying = false
     var volume: Float = 1.0
     var isBuffering = false
@@ -77,17 +110,76 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     private var stallTimer: Timer?
     private var sleepAssertionID: IOPMAssertionID = 0
     private var isSleepPrevented = false
-    private var hasReceivedVideoFrame = false
     private var streamInfoExtracted = false
+    private var fullscreenPanel: FullscreenPanel?
 
     override init() {
         super.init()
         player.delegate = self
+        player.drawable = videoView
         player.audio?.volume = 100
     }
 
+    // MARK: - Fullscreen
+
+    func enterFullscreen() {
+        guard fullscreenPanel == nil,
+              let screen = NSScreen.main ?? videoView.window?.screen else { return }
+
+        let panel = FullscreenPanel(
+            contentRect: screen.frame,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.level = .screenSaver
+        panel.isOpaque = true
+        panel.backgroundColor = .black
+        panel.collectionBehavior = [.fullScreenAuxiliary, .canJoinAllSpaces]
+        panel.hasShadow = false
+
+        // Reparent the video view into the fullscreen panel
+        videoView.removeFromSuperview()
+        videoView.translatesAutoresizingMaskIntoConstraints = false
+        panel.contentView?.addSubview(videoView)
+        if let contentView = panel.contentView {
+            NSLayoutConstraint.activate([
+                videoView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+                videoView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+                videoView.topAnchor.constraint(equalTo: contentView.topAnchor),
+                videoView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            ])
+        }
+
+        panel.orderFrontRegardless()
+        panel.makeKey()
+        fullscreenPanel = panel
+
+        // Hide cursor after delay
+        NSCursor.setHiddenUntilMouseMoves(true)
+    }
+
+    func exitFullscreen() {
+        guard let panel = fullscreenPanel else { return }
+
+        // Reparent the video view back to the SwiftUI host
+        videoView.removeFromSuperview()
+        hostView?.attachVideoView()
+
+        panel.orderOut(nil)
+        fullscreenPanel = nil
+
+        // Restore focus to main window
+        NSApplication.shared.mainWindow?.makeKey()
+    }
+
+    var isInFullscreen: Bool {
+        fullscreenPanel != nil
+    }
+
+    // MARK: - Playback
+
     func play(url: URL) {
-        // Stop current playback first
         if player.isPlaying {
             player.stop()
         }
@@ -108,7 +200,6 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         streamInfo = StreamInfo()
         subtitleOptions = []
         selectedSubtitleIndex = -1
-        hasReceivedVideoFrame = false
         streamInfoExtracted = false
         startStallTimer()
     }
@@ -174,7 +265,6 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     }
 
     func selectSubtitle(_ index: Int) {
-        // -1 disables subtitles
         player.currentVideoSubTitleIndex = Int32(index)
         selectedSubtitleIndex = index
     }
@@ -248,14 +338,12 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
                 }
             }
 
-            // Once we get time updates, stream is definitely playing
             if isBuffering {
                 isBuffering = false
                 statusMessage = nil
                 cancelStallTimer()
             }
 
-            // Extract stream info once we have video output
             if !streamInfoExtracted && vlcPlayer.hasVideoOut {
                 extractStreamInfo()
                 extractSubtitles()
@@ -307,7 +395,6 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
             info.resolution = "\(Int(videoSize.width))x\(Int(videoSize.height))"
         }
 
-        // VLC provides codec info through media tracksInformation
         if let media = player.media {
             let tracks = media.tracksInformation
             if let tracks = tracks as? [[String: Any]] {
@@ -334,7 +421,6 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
             }
         }
 
-        // Get bitrate from media statistics
         if let media = player.media {
             let stats = media.statistics
             let bitrate = stats.demuxBitrate
@@ -358,7 +444,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         var options: [(index: Int, name: String)] = []
         for (name, idx) in zip(subtitleNames, subtitleIndexes) {
             let index = idx.intValue
-            if index == -1 { continue } // skip "Disable" entry
+            if index == -1 { continue }
             options.append((index: index, name: name))
         }
         subtitleOptions = options
@@ -366,24 +452,23 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
 
     private func fourCCToString(_ code: UInt32) -> String {
         let knownCodecs: [UInt32: String] = [
-            0x68323634: "H.264",     // h264
-            0x48323634: "H.264",     // H264
-            0x61766331: "H.264",     // avc1
-            0x68657663: "HEVC",      // hevc
-            0x48455643: "HEVC",      // HEVC
-            0x68766331: "HEVC",      // hvc1
-            0x76703039: "VP9",       // vp09
-            0x56503039: "VP9",       // VP09
-            0x61763031: "AV1",       // av01
-            0x6D703461: "AAC",       // mp4a
-            0x61632D33: "AC-3",      // ac-3
-            0x65632D33: "E-AC-3",    // ec-3
-            0x6F707573: "Opus",      // opus
-            0x6D703361: "MP3",       // mp3a
+            0x68323634: "H.264",
+            0x48323634: "H.264",
+            0x61766331: "H.264",
+            0x68657663: "HEVC",
+            0x48455643: "HEVC",
+            0x68766331: "HEVC",
+            0x76703039: "VP9",
+            0x56503039: "VP9",
+            0x61763031: "AV1",
+            0x6D703461: "AAC",
+            0x61632D33: "AC-3",
+            0x65632D33: "E-AC-3",
+            0x6F707573: "Opus",
+            0x6D703361: "MP3",
         ]
         if let name = knownCodecs[code] { return name }
 
-        // Try to interpret as FourCC characters
         let chars: [Character] = [
             Character(UnicodeScalar((code >> 24) & 0xFF)!),
             Character(UnicodeScalar((code >> 16) & 0xFF)!),
