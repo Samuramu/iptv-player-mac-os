@@ -108,6 +108,8 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     private var activeURLString: String?
     private var triedAlternate = false
     private var stallTimer: Timer?
+    private var bufferRetryTimer: Timer?
+    private var bufferRetryCount = 0
     private var sleepAssertionID: IOPMAssertionID = 0
     private var isSleepPrevented = false
     private var streamInfoExtracted = false
@@ -185,7 +187,10 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         }
 
         let media = VLCMedia(url: url)
-        media.addOption(":network-caching=1500")
+        media.addOption(":network-caching=3000")
+        media.addOption(":live-caching=3000")
+        media.addOption(":http-reconnect")
+        media.addOption(":http-continuous")
         media.addOption(":http-user-agent=VLC/3.0.20 LibVLC/3.0.20")
 
         player.media = media
@@ -201,6 +206,8 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         subtitleOptions = []
         selectedSubtitleIndex = -1
         streamInfoExtracted = false
+        bufferRetryCount = 0
+        cancelBufferRetryTimer()
         startStallTimer()
     }
 
@@ -256,6 +263,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         statusMessage = nil
         isBuffering = false
         cancelStallTimer()
+        cancelBufferRetryTimer()
         allowSleep()
     }
 
@@ -282,6 +290,8 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
                 isBuffering = false
                 statusMessage = nil
                 cancelStallTimer()
+                cancelBufferRetryTimer()
+                bufferRetryCount = 0
                 preventSleep()
                 if !streamInfoExtracted {
                     extractStreamInfo()
@@ -292,6 +302,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
             case .buffering:
                 isBuffering = true
                 statusMessage = "Buffering..."
+                startBufferRetryTimer()
 
             case .paused:
                 isPlaying = false
@@ -385,6 +396,39 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     private func cancelStallTimer() {
         stallTimer?.invalidate()
         stallTimer = nil
+    }
+
+    private func startBufferRetryTimer() {
+        cancelBufferRetryTimer()
+        bufferRetryTimer = Timer.scheduledTimer(withTimeInterval: 8.0, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.isBuffering, self.errorMessage == nil else { return }
+                self.bufferRetryCount += 1
+                if self.bufferRetryCount <= 3 {
+                    self.statusMessage = "Reconnecting... (attempt \(self.bufferRetryCount)/3)"
+                    // Restart playback with the same URL
+                    if let urlString = self.activeURLString, let url = URL(string: urlString) {
+                        self.player.stop()
+                        let media = VLCMedia(url: url)
+                        media.addOption(":network-caching=3000")
+                        media.addOption(":live-caching=3000")
+                        media.addOption(":http-reconnect")
+                        media.addOption(":http-continuous")
+                        media.addOption(":http-user-agent=VLC/3.0.20 LibVLC/3.0.20")
+                        self.player.media = media
+                        self.player.play()
+                    }
+                } else {
+                    self.statusMessage = "Stream stalled — tap Retry"
+                    self.cancelBufferRetryTimer()
+                }
+            }
+        }
+    }
+
+    private func cancelBufferRetryTimer() {
+        bufferRetryTimer?.invalidate()
+        bufferRetryTimer = nil
     }
 
     private func extractStreamInfo() {
@@ -481,6 +525,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
 
     deinit {
         stallTimer?.invalidate()
+        bufferRetryTimer?.invalidate()
         player.stop()
         if isSleepPrevented {
             IOPMAssertionRelease(sleepAssertionID)
