@@ -116,6 +116,8 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     private var isSleepPrevented = false
     private var streamInfoExtracted = false
     private var fullscreenPanel: FullscreenPanel?
+    private var probeTask: URLSessionDataTask?
+    private var probeSession: URLSession?
 
     override init() {
         super.init()
@@ -218,21 +220,40 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         cancelBufferRetryTimer()
         startStallTimer()
 
-        // HTTP probe: check what the server actually returns
-        probeStreamURL(url)
+        // HTTP probe disabled — Xtream servers count HEAD/GET as active connections
+        // probeStreamURL(url)
+    }
+
+    private func cancelProbe() {
+        probeTask?.cancel()
+        probeTask = nil
+        probeSession?.invalidateAndCancel()
+        probeSession = nil
     }
 
     private func probeStreamURL(_ url: URL) {
+        // Cancel any previous probe first to avoid connection leaks
+        cancelProbe()
+
+        // Use HEAD to avoid consuming a stream connection slot
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = "HEAD"
         request.setValue("VLC/3.0.20 LibVLC/3.0.20", forHTTPHeaderField: "User-Agent")
-        request.timeoutInterval = 10
+        request.timeoutInterval = 8
 
         let delegate = RedirectTracker(logger: logger)
-        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForResource = 8
+        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+        probeSession = session
 
-        let task = session.dataTask(with: request) { [logger] data, response, error in
+        let task = session.dataTask(with: request) { [logger, weak self] data, response, error in
+            // Clean up session immediately
+            session.finishTasksAndInvalidate()
+
             if let error {
+                // Don't log cancellation errors (expected when switching channels)
+                if (error as? URLError)?.code == .cancelled { return }
                 logger.log("HTTP probe error: \(error.localizedDescription)", level: "PROBE")
                 if let urlError = error as? URLError {
                     logger.log("  URLError code: \(urlError.code.rawValue) (\(urlError.code))", level: "PROBE")
@@ -252,13 +273,11 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
             let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? "unknown"
             let contentLength = httpResponse.value(forHTTPHeaderField: "Content-Length") ?? "unknown"
             let finalURL = httpResponse.url?.absoluteString ?? "unknown"
-            let bytesReceived = data?.count ?? 0
 
             logger.log("HTTP probe result:", level: "PROBE")
             logger.log("  Status: \(status)", level: "PROBE")
             logger.log("  Content-Type: \(contentType)", level: "PROBE")
             logger.log("  Content-Length: \(contentLength)", level: "PROBE")
-            logger.log("  Bytes received: \(bytesReceived)", level: "PROBE")
             logger.log("  Final URL: \(finalURL)", level: "PROBE")
 
             // Log all response headers
@@ -266,18 +285,12 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
                 logger.log("  Header: \(key) = \(value)", level: "PROBE")
             }
 
-            // If we got a small response, log the body (might be an error page)
-            if let data, bytesReceived < 2000, bytesReceived > 0 {
-                let body = String(data: data, encoding: .utf8) ?? "(binary data, \(bytesReceived) bytes)"
-                logger.log("  Body: \(body)", level: "PROBE")
-            }
-
             let redirects = delegate.redirects
             if !redirects.isEmpty {
                 logger.log("  Redirect chain: \(redirects.joined(separator: " → "))", level: "PROBE")
             }
 
-            let probeInfo = "HTTP \(status) | \(contentType) | \(bytesReceived) bytes"
+            let probeInfo = "HTTP \(status) | \(contentType) | \(contentLength)"
             Task { @MainActor [weak self] in
                 self?.debugInfo = (self?.debugInfo ?? "") + "\nProbe: \(probeInfo)"
                 if status != 200 {
@@ -285,12 +298,8 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
                 }
             }
         }
+        probeTask = task
         task.resume()
-
-        // Cancel after receiving first chunk — we just need headers
-        DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
-            task.cancel()
-        }
     }
 
     func play(urlString: String) {
@@ -347,6 +356,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         isBuffering = false
         cancelStallTimer()
         cancelBufferRetryTimer()
+        cancelProbe()
         allowSleep()
     }
 
@@ -404,8 +414,11 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
                 allowSleep()
 
             case .stopped:
-                isPlaying = false
-                isBuffering = false
+                // Only update if player isn't already playing again (e.g. format fallback)
+                if !vlcPlayer.isPlaying {
+                    isPlaying = false
+                    isBuffering = false
+                }
                 allowSleep()
 
             case .ended:
@@ -447,10 +460,15 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
                 }
             }
 
-            if isBuffering {
+            if isBuffering || !isPlaying {
                 isBuffering = false
+                isPlaying = true
                 statusMessage = nil
                 cancelStallTimer()
+                if !hasPlayedSuccessfully {
+                    hasPlayedSuccessfully = true
+                    preventSleep()
+                }
             }
 
             if !streamInfoExtracted && vlcPlayer.hasVideoOut {
@@ -483,12 +501,27 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
 
     private func startStallTimer() {
         cancelStallTimer()
-        stallTimer = Timer.scheduledTimer(withTimeInterval: 15.0, repeats: false) { [weak self] _ in
+        stallTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.isBuffering, self.errorMessage == nil else { return }
+
+                // Auto-fallback: if .m3u8 stalled and we haven't tried .ts yet, try it
+                if !self.triedAlternate, let urlString = self.activeURLString, urlString.hasSuffix(".m3u8") {
+                    let tsURL = String(urlString.dropLast(5)) + ".ts"
+                    self.logger.log("Auto-fallback: .m3u8 stalled, trying .ts | \(tsURL)", level: "WARN")
+                    self.statusMessage = "Trying alternate format..."
+                    self.triedAlternate = true
+                    self.activeURLString = tsURL
+                    if let url = URL(string: tsURL) {
+                        self.player.stop()
+                        self.play(url: url)
+                    }
+                    return
+                }
+
                 self.statusMessage = "Stream is taking too long to respond"
                 self.errorDetail = self.buildErrorDetail(player: self.player)
-                self.logger.log("Stall timeout (15s) | url: \(self.activeURLString ?? "nil")", level: "WARN")
+                self.logger.log("Stall timeout (10s) | url: \(self.activeURLString ?? "nil")", level: "WARN")
             }
         }
     }
@@ -668,6 +701,8 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     deinit {
         stallTimer?.invalidate()
         bufferRetryTimer?.invalidate()
+        probeTask?.cancel()
+        probeSession?.invalidateAndCancel()
         player.stop()
         if isSleepPrevented {
             IOPMAssertionRelease(sleepAssertionID)
