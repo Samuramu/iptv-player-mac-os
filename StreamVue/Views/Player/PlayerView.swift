@@ -118,6 +118,8 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     private var fullscreenPanel: FullscreenPanel?
     private var probeTask: URLSessionDataTask?
     private var probeSession: URLSession?
+    private var lastTimeUpdate: TimeInterval = 0
+    private var lastReportedState: VLCMediaPlayerState?
 
     override init() {
         super.init()
@@ -194,12 +196,18 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         }
 
         let media = VLCMedia(url: url)
-        media.addOption(":network-caching=3000")
-        media.addOption(":live-caching=3000")
+        let isTS = url.pathExtension == "ts"
+        media.addOption(":network-caching=\(isTS ? 5000 : 3000)")
+        media.addOption(":live-caching=\(isTS ? 5000 : 3000)")
+        media.addOption(":clock-jitter=0")
+        media.addOption(":clock-synchro=0")
         media.addOption(":http-reconnect")
         media.addOption(":http-continuous")
         media.addOption(":http-user-agent=VLC/3.0.20 LibVLC/3.0.20")
-        media.addOption(":verbose=2")
+        // Hardware-accelerated decoding for 4K/HEVC
+        media.addOption(":codec=avcodec,all")
+        media.addOption(":avcodec-hw=any")
+        media.addOption(":avcodec-threads=0")
 
         player.media = media
         player.audio?.volume = Int32(volume * 100)
@@ -373,10 +381,14 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     // MARK: - VLCMediaPlayerDelegate
 
     @objc func mediaPlayerStateChanged(_ aNotification: Notification) {
-        Task { @MainActor in
-            guard let vlcPlayer = aNotification.object as? VLCMediaPlayer else { return }
-            let state = vlcPlayer.state
+        guard let vlcPlayer = aNotification.object as? VLCMediaPlayer else { return }
+        let state = vlcPlayer.state
 
+        // Skip duplicate state notifications (VLC fires .buffering dozens of times)
+        if state == lastReportedState && state == .buffering { return }
+        lastReportedState = state
+
+        Task { @MainActor in
             let stateNames: [VLCMediaPlayerState: String] = [
                 .playing: "playing", .buffering: "buffering", .paused: "paused",
                 .stopped: "stopped", .ended: "ended", .error: "error", .opening: "opening"
@@ -449,6 +461,12 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     }
 
     @objc func mediaPlayerTimeChanged(_ aNotification: Notification) {
+        // Throttle: update UI at most every 0.5s to avoid flooding the main thread
+        let now = CACurrentMediaTime()
+        let needsStateFix = !hasPlayedSuccessfully || isBuffering || !isPlaying
+        guard needsStateFix || (now - lastTimeUpdate) >= 0.5 else { return }
+        lastTimeUpdate = now
+
         Task { @MainActor in
             guard let vlcPlayer = aNotification.object as? VLCMediaPlayer else { return }
             let time = vlcPlayer.time
