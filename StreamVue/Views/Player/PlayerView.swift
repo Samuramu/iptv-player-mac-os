@@ -98,6 +98,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     var currentTime: Double = 0
     var duration: Double = 0
     var errorMessage: String?
+    var errorDetail: String?
     var statusMessage: String?
     var debugInfo: String?
     var streamInfo = StreamInfo()
@@ -110,6 +111,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     private var stallTimer: Timer?
     private var bufferRetryTimer: Timer?
     private var bufferRetryCount = 0
+    private var hasPlayedSuccessfully = false
     private var sleepAssertionID: IOPMAssertionID = 0
     private var isSleepPrevented = false
     private var streamInfoExtracted = false
@@ -181,7 +183,10 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
 
     // MARK: - Playback
 
+    private let logger = StreamLogger.shared
+
     func play(url: URL) {
+        logger.log("play(url: \(url.absoluteString))")
         if player.isPlaying {
             player.stop()
         }
@@ -192,6 +197,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         media.addOption(":http-reconnect")
         media.addOption(":http-continuous")
         media.addOption(":http-user-agent=VLC/3.0.20 LibVLC/3.0.20")
+        media.addOption(":verbose=2")
 
         player.media = media
         player.audio?.volume = Int32(volume * 100)
@@ -200,6 +206,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         isPlaying = true
         isBuffering = true
         errorMessage = nil
+        errorDetail = nil
         statusMessage = "Connecting..."
         debugInfo = nil
         streamInfo = StreamInfo()
@@ -207,8 +214,83 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         selectedSubtitleIndex = -1
         streamInfoExtracted = false
         bufferRetryCount = 0
+        hasPlayedSuccessfully = false
         cancelBufferRetryTimer()
         startStallTimer()
+
+        // HTTP probe: check what the server actually returns
+        probeStreamURL(url)
+    }
+
+    private func probeStreamURL(_ url: URL) {
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("VLC/3.0.20 LibVLC/3.0.20", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 10
+
+        let delegate = RedirectTracker(logger: logger)
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+
+        let task = session.dataTask(with: request) { [logger] data, response, error in
+            if let error {
+                logger.log("HTTP probe error: \(error.localizedDescription)", level: "PROBE")
+                if let urlError = error as? URLError {
+                    logger.log("  URLError code: \(urlError.code.rawValue) (\(urlError.code))", level: "PROBE")
+                }
+                Task { @MainActor [weak self] in
+                    self?.debugInfo = (self?.debugInfo ?? "") + "\nProbe: \(error.localizedDescription)"
+                }
+                return
+            }
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                logger.log("HTTP probe: non-HTTP response", level: "PROBE")
+                return
+            }
+
+            let status = httpResponse.statusCode
+            let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? "unknown"
+            let contentLength = httpResponse.value(forHTTPHeaderField: "Content-Length") ?? "unknown"
+            let finalURL = httpResponse.url?.absoluteString ?? "unknown"
+            let bytesReceived = data?.count ?? 0
+
+            logger.log("HTTP probe result:", level: "PROBE")
+            logger.log("  Status: \(status)", level: "PROBE")
+            logger.log("  Content-Type: \(contentType)", level: "PROBE")
+            logger.log("  Content-Length: \(contentLength)", level: "PROBE")
+            logger.log("  Bytes received: \(bytesReceived)", level: "PROBE")
+            logger.log("  Final URL: \(finalURL)", level: "PROBE")
+
+            // Log all response headers
+            for (key, value) in httpResponse.allHeaderFields {
+                logger.log("  Header: \(key) = \(value)", level: "PROBE")
+            }
+
+            // If we got a small response, log the body (might be an error page)
+            if let data, bytesReceived < 2000, bytesReceived > 0 {
+                let body = String(data: data, encoding: .utf8) ?? "(binary data, \(bytesReceived) bytes)"
+                logger.log("  Body: \(body)", level: "PROBE")
+            }
+
+            let redirects = delegate.redirects
+            if !redirects.isEmpty {
+                logger.log("  Redirect chain: \(redirects.joined(separator: " → "))", level: "PROBE")
+            }
+
+            let probeInfo = "HTTP \(status) | \(contentType) | \(bytesReceived) bytes"
+            Task { @MainActor [weak self] in
+                self?.debugInfo = (self?.debugInfo ?? "") + "\nProbe: \(probeInfo)"
+                if status != 200 {
+                    self?.debugInfo = (self?.debugInfo ?? "") + "\n⚠ Non-200 status may indicate access issue"
+                }
+            }
+        }
+        task.resume()
+
+        // Cancel after receiving first chunk — we just need headers
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+            task.cancel()
+        }
     }
 
     func play(urlString: String) {
@@ -227,6 +309,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     func retryWithAlternateFormat() {
         guard let original = currentURLString else { return }
         errorMessage = nil
+        errorDetail = nil
 
         let alternate: String
         if !triedAlternate {
@@ -284,6 +367,13 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
             guard let vlcPlayer = aNotification.object as? VLCMediaPlayer else { return }
             let state = vlcPlayer.state
 
+            let stateNames: [VLCMediaPlayerState: String] = [
+                .playing: "playing", .buffering: "buffering", .paused: "paused",
+                .stopped: "stopped", .ended: "ended", .error: "error", .opening: "opening"
+            ]
+            let stateName = stateNames[state] ?? "unknown(\(state.rawValue))"
+            logger.log("State changed: \(stateName) | url: \(activeURLString ?? "nil")")
+
             switch state {
             case .playing:
                 isPlaying = true
@@ -292,7 +382,9 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
                 cancelStallTimer()
                 cancelBufferRetryTimer()
                 bufferRetryCount = 0
+                hasPlayedSuccessfully = true
                 preventSleep()
+                logger.log("Playback started successfully")
                 if !streamInfoExtracted {
                     extractStreamInfo()
                     extractSubtitles()
@@ -302,7 +394,10 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
             case .buffering:
                 isBuffering = true
                 statusMessage = "Buffering..."
-                startBufferRetryTimer()
+                // Only auto-retry if stream was playing and then stalled (mid-stream)
+                if hasPlayedSuccessfully {
+                    startBufferRetryTimer()
+                }
 
             case .paused:
                 isPlaying = false
@@ -325,6 +420,9 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
                 cancelStallTimer()
                 statusMessage = nil
                 errorMessage = "Playback failed"
+                let detail = self.buildErrorDetail(player: vlcPlayer)
+                errorDetail = detail
+                logger.log("Playback error:\n\(detail)", level: "ERROR")
                 allowSleep()
 
             case .opening:
@@ -389,6 +487,8 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
             Task { @MainActor in
                 guard let self, self.isBuffering, self.errorMessage == nil else { return }
                 self.statusMessage = "Stream is taking too long to respond"
+                self.errorDetail = self.buildErrorDetail(player: self.player)
+                self.logger.log("Stall timeout (15s) | url: \(self.activeURLString ?? "nil")", level: "WARN")
             }
         }
     }
@@ -406,7 +506,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
                 self.bufferRetryCount += 1
                 if self.bufferRetryCount <= 3 {
                     self.statusMessage = "Reconnecting... (attempt \(self.bufferRetryCount)/3)"
-                    // Restart playback with the same URL
+                    self.logger.log("Buffer retry \(self.bufferRetryCount)/3 | url: \(self.activeURLString ?? "nil")", level: "WARN")
                     if let urlString = self.activeURLString, let url = URL(string: urlString) {
                         self.player.stop()
                         let media = VLCMedia(url: url)
@@ -429,6 +529,48 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     private func cancelBufferRetryTimer() {
         bufferRetryTimer?.invalidate()
         bufferRetryTimer = nil
+    }
+
+    private func buildErrorDetail(player: VLCMediaPlayer) -> String {
+        var lines: [String] = []
+
+        if let urlString = activeURLString {
+            // Show host + path, not query params (may contain tokens)
+            if let url = URL(string: urlString) {
+                let host = url.host ?? "unknown"
+                let path = url.path
+                lines.append("Host: \(host)")
+                lines.append("Path: \(path)")
+            }
+        }
+
+        if let media = player.media {
+            let state = media.state
+            let stateStr: String
+            switch state {
+            case .nothingSpecial: stateStr = "Nothing special"
+            case .buffering: stateStr = "Buffering"
+            case .playing: stateStr = "Playing"
+            case .error: stateStr = "Media error"
+            default: stateStr = "State \(state.rawValue)"
+            }
+            lines.append("Media state: \(stateStr)")
+
+            let stats = media.statistics
+            if stats.readBytes > 0 {
+                lines.append("Bytes read: \(stats.readBytes)")
+            } else {
+                lines.append("Bytes read: 0 (no data received)")
+            }
+        }
+
+        if !hasPlayedSuccessfully {
+            lines.append("Never connected successfully")
+        } else {
+            lines.append("Was playing before failure")
+        }
+
+        return lines.joined(separator: "\n")
     }
 
     private func extractStreamInfo() {
@@ -530,5 +672,25 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         if isSleepPrevented {
             IOPMAssertionRelease(sleepAssertionID)
         }
+    }
+}
+
+// MARK: - Redirect Tracker for HTTP Probe
+
+private class RedirectTracker: NSObject, URLSessionTaskDelegate {
+    let logger: StreamLogger
+    var redirects: [String] = []
+
+    init(logger: StreamLogger) {
+        self.logger = logger
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        let from = response.url?.absoluteString ?? "?"
+        let to = request.url?.absoluteString ?? "?"
+        let status = response.statusCode
+        redirects.append("\(status):\(from)")
+        logger.log("  Redirect \(status): \(from) → \(to)", level: "PROBE")
+        completionHandler(request)
     }
 }

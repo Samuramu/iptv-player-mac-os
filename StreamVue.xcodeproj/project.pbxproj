@@ -7,37 +7,39 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10000001 /* StreamVueApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000001; };
-		A10000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000002; };
-		A10000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000003; };
-		A10000004 /* Provider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000004; };
-		A10000005 /* Channel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000005; };
-		A10000006 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000006; };
-		A10000007 /* EPGProgram.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000007; };
-		A10000008 /* Favorite.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000008; };
-		A10000009 /* M3UParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000009; };
-		A10000010 /* XtreamService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010; };
-		A10000011 /* EPGParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000011; };
-		A10000012 /* ProviderManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000012; };
-		A10000013 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000013; };
-		A10000014 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000014; };
-		A10000015 /* ProviderRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000015; };
-		A10000016 /* CategoryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000016; };
-		A10000017 /* ChannelGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000017; };
-		A10000018 /* ChannelCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000018; };
-		A10000019 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000019; };
-		A10000020 /* PlayerOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000020; };
-		A10000021 /* PlayerContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000021; };
-		A10000022 /* EPGTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000022; };
-		A10000023 /* EPGProgramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000023; };
-		A10000024 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000024; };
-		A10000025 /* AddProviderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000025; };
-		A10000026 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000026; };
-		A10000027 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000027; };
+		273571182FFA4FF6EB2CAA97 /* StreamLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13F06EB6EAB96F9D56547E1 /* StreamLogger.swift */; };
+		A10000001 /* StreamVueApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000001 /* StreamVueApp.swift */; };
+		A10000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000002 /* ContentView.swift */; };
+		A10000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000003 /* Assets.xcassets */; };
+		A10000004 /* Provider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000004 /* Provider.swift */; };
+		A10000005 /* Channel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000005 /* Channel.swift */; };
+		A10000006 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000006 /* Category.swift */; };
+		A10000007 /* EPGProgram.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000007 /* EPGProgram.swift */; };
+		A10000008 /* Favorite.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000008 /* Favorite.swift */; };
+		A10000009 /* M3UParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000009 /* M3UParser.swift */; };
+		A10000010 /* XtreamService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010 /* XtreamService.swift */; };
+		A10000011 /* EPGParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000011 /* EPGParser.swift */; };
+		A10000012 /* ProviderManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000012 /* ProviderManager.swift */; };
+		A10000013 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000013 /* ImageCache.swift */; };
+		A10000014 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000014 /* SidebarView.swift */; };
+		A10000015 /* ProviderRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000015 /* ProviderRow.swift */; };
+		A10000016 /* CategoryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000016 /* CategoryRow.swift */; };
+		A10000017 /* ChannelGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000017 /* ChannelGridView.swift */; };
+		A10000018 /* ChannelCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000018 /* ChannelCard.swift */; };
+		A10000019 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000019 /* PlayerView.swift */; };
+		A10000020 /* PlayerOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000020 /* PlayerOverlayView.swift */; };
+		A10000021 /* PlayerContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000021 /* PlayerContainerView.swift */; };
+		A10000022 /* EPGTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000022 /* EPGTimelineView.swift */; };
+		A10000023 /* EPGProgramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000023 /* EPGProgramView.swift */; };
+		A10000024 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000024 /* SettingsView.swift */; };
+		A10000025 /* AddProviderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000025 /* AddProviderView.swift */; };
+		A10000026 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000026 /* KeyboardShortcuts.swift */; };
+		A10000027 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000027 /* Extensions.swift */; };
 		A10000028 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = A90000002 /* VLCKitSPM */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A13F06EB6EAB96F9D56547E1 /* StreamLogger.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StreamLogger.swift; sourceTree = "<group>"; };
 		A20000000 /* StreamVue.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StreamVue.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000001 /* StreamVueApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamVueApp.swift; sourceTree = "<group>"; };
 		A20000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -87,14 +89,6 @@
 				A40000001 /* StreamVue */,
 				A40000099 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		A40000099 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				A20000000 /* StreamVue.app */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 		A40000001 /* StreamVue */ = {
@@ -200,8 +194,17 @@
 			children = (
 				A20000026 /* KeyboardShortcuts.swift */,
 				A20000027 /* Extensions.swift */,
+				A13F06EB6EAB96F9D56547E1 /* StreamLogger.swift */,
 			);
 			path = Utilities;
+			sourceTree = "<group>";
+		};
+		A40000099 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000 /* StreamVue.app */,
+			);
+			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -251,12 +254,12 @@
 				Base,
 			);
 			mainGroup = A40000000;
-			productRefGroup = A40000099 /* Products */;
-			projectDirPath = "";
-			projectRoot = "";
 			packageReferences = (
 				A90000001 /* XCRemoteSwiftPackageReference "vlckit-spm" */,
 			);
+			productRefGroup = A40000099 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
 			targets = (
 				A50000001 /* StreamVue */,
 			);
@@ -305,6 +308,7 @@
 				A10000025 /* AddProviderView.swift in Sources */,
 				A10000026 /* KeyboardShortcuts.swift in Sources */,
 				A10000027 /* Extensions.swift in Sources */,
+				273571182FFA4FF6EB2CAA97 /* StreamLogger.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

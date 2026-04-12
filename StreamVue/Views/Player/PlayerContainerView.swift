@@ -37,9 +37,27 @@ struct PlayerContainerView: View {
                             .padding(.horizontal, 40)
                     }
 
+                    if let detail = playerState.errorDetail {
+                        Text(detail)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .multilineTextAlignment(.leading)
+                            .padding(.horizontal, 40)
+                            .textSelection(.enabled)
+                    }
+
                     Text(channel.name)
                         .font(.caption)
                         .foregroundStyle(.tertiary)
+
+                    if let debug = playerState.debugInfo {
+                        Text(debug)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .multilineTextAlignment(.leading)
+                            .padding(.horizontal, 40)
+                            .textSelection(.enabled)
+                    }
 
                     HStack(spacing: 12) {
                         Button("Retry") {
@@ -66,6 +84,22 @@ struct PlayerContainerView: View {
                             .font(.callout)
                             .foregroundStyle(.secondary)
                             .transition(.opacity)
+                    }
+
+                    if let detail = playerState.errorDetail {
+                        Text(detail)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .multilineTextAlignment(.leading)
+                            .textSelection(.enabled)
+                    }
+
+                    if let debug = playerState.debugInfo {
+                        Text(debug)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .multilineTextAlignment(.leading)
+                            .textSelection(.enabled)
                     }
 
                     Text(channel.name)
