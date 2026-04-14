@@ -140,10 +140,10 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
             backing: .buffered,
             defer: false
         )
-        panel.level = .screenSaver
+        panel.level = .normal
         panel.isOpaque = true
         panel.backgroundColor = .black
-        panel.collectionBehavior = [.fullScreenAuxiliary, .canJoinAllSpaces]
+        panel.collectionBehavior = [.fullScreenPrimary, .managed]
         panel.hasShadow = false
 
         // Reparent the video view into the fullscreen panel

@@ -83,6 +83,7 @@ struct ChannelGridView: View {
             let favorite = Favorite(channelID: channel.id)
             modelContext.insert(favorite)
         }
+        try? modelContext.save()
     }
 }
 

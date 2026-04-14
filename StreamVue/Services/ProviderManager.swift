@@ -132,34 +132,21 @@ final class ProviderManager {
     // Synchronous category loading (main thread)
     private func loadCategoriesSync(providerID: UUID, context: ModelContext) {
         do {
-            totalChannelCount = try context.fetchCount(FetchDescriptor<Channel>(
+            // Single query: fetch all channels and count per category in memory
+            var descriptor = FetchDescriptor<Channel>(
                 predicate: #Predicate { $0.providerID == providerID }
-            ))
+            )
+            descriptor.propertiesToFetch = [\.groupTitle]
+            let allChannels = try context.fetch(descriptor)
 
-            let cats = try context.fetch(FetchDescriptor<ChannelCategory>(
-                predicate: #Predicate { $0.providerID == providerID }
-            ))
+            totalChannelCount = allChannels.count
 
-            var seen = Set<String>()
-            var catNames: [String] = []
             var counts: [String: Int] = [:]
-
-            for cat in cats {
-                if seen.insert(cat.name).inserted {
-                    catNames.append(cat.name)
-                }
-            }
-            catNames.sort()
-
-            for name in catNames {
-                let catName = name
-                counts[name] = try context.fetchCount(FetchDescriptor<Channel>(
-                    predicate: #Predicate {
-                        $0.providerID == providerID && $0.groupTitle == catName
-                    }
-                ))
+            for channel in allChannels {
+                counts[channel.groupTitle, default: 0] += 1
             }
 
+            let catNames = counts.keys.sorted()
             categoryCounts = counts
             categories = catNames
         } catch {
