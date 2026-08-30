@@ -7,6 +7,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var providers: [Provider]
     @State private var showingAddProvider = false
+    @State private var backupMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -70,6 +71,36 @@ struct SettingsView: View {
 
                     Divider()
 
+                    // Backup section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Backup", systemImage: "externaldrive")
+                            .font(.headline)
+                        Text("Save your providers (and favorites) to a file so you can restore them after a reinstall.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        HStack(spacing: 8) {
+                            Button(action: exportProviders) {
+                                Label("Export…", systemImage: "square.and.arrow.up")
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(providers.isEmpty)
+
+                            Button(action: importProviders) {
+                                Label("Import…", systemImage: "square.and.arrow.down")
+                            }
+                            .buttonStyle(.bordered)
+
+                            if let backupMessage {
+                                Text(backupMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                    }
+
+                    Divider()
+
                     // About section
                     VStack(alignment: .leading, spacing: 8) {
                         Label("About", systemImage: "info.circle")
@@ -92,6 +123,35 @@ struct SettingsView: View {
         .frame(width: 500, height: 500)
         .sheet(isPresented: $showingAddProvider) {
             AddProviderView(providerManager: providerManager)
+        }
+    }
+
+    private func exportProviders() {
+        do {
+            if let url = try BackupService.export(context: modelContext) {
+                backupMessage = "Saved to \(url.lastPathComponent)"
+            }
+        } catch {
+            backupMessage = "Export failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func importProviders() {
+        do {
+            guard let result = try BackupService.importFromPanel(context: modelContext) else { return }
+            backupMessage = "Imported \(result.added.count) provider\(result.added.count == 1 ? "" : "s")"
+                + (result.skipped > 0 ? ", \(result.skipped) already present" : "")
+            // Load new providers in the background and re-link favorites once channels exist.
+            Task {
+                for provider in result.added {
+                    await providerManager.loadChannels(for: provider)
+                }
+                for (providerID, urls) in result.pendingFavorites {
+                    BackupService.relinkFavorites(providerID: providerID, urls: urls, context: modelContext)
+                }
+            }
+        } catch {
+            backupMessage = "Import failed: \(error.localizedDescription)"
         }
     }
 }
