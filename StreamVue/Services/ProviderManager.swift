@@ -20,137 +20,112 @@ final class ProviderManager {
         self.modelContext = context
     }
 
-    func loadChannels(for provider: Provider) async {
-        guard let context = modelContext, !isLoading else { return }
-        isLoading = true
+    /// Bumped whenever the channel table for the current provider changes on disk,
+    /// so views can re-run their current query.
+    var reloadToken = 0
+
+    private var importer: ChannelImporter?
+
+    /// Loads a provider. Cached channels/categories appear immediately; if a refresh is
+    /// needed it runs in the background and the UI is swapped over once the new data is saved.
+    func loadChannels(for provider: Provider, forceRefresh: Bool = false) async {
+        guard let context = modelContext else { return }
+        if importer == nil { importer = ChannelImporter(modelContainer: context.container) }
+        guard let importer else { return }
+
+        let providerID = provider.id
+        currentProviderID = providerID
         errorMessage = nil
 
+        // 1. Show whatever is already cached, without blocking the UI.
+        let hasCached = (try? await importer.hasChannels(providerID: providerID)) ?? false
+        if hasCached {
+            await reloadCategories(providerID: providerID)
+        } else {
+            categories = []
+            categoryCounts = [:]
+            totalChannelCount = 0
+            channels = []
+        }
+
+        // 2. Refresh in the background if needed.
+        guard forceRefresh || !hasCached || provider.lastRefresh == nil else { return }
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+
         do {
-            let providerID = provider.id
-
-            let existingCount = try context.fetchCount(FetchDescriptor<Channel>(
-                predicate: #Predicate { $0.providerID == providerID }
-            ))
-
-            if existingCount == 0 || provider.lastRefresh == nil {
-                // Delete existing data
-                let existingChannels = try context.fetch(FetchDescriptor<Channel>(
-                    predicate: #Predicate { $0.providerID == providerID }
-                ))
-                for channel in existingChannels { context.delete(channel) }
-
-                let existingCategories = try context.fetch(FetchDescriptor<ChannelCategory>(
-                    predicate: #Predicate { $0.providerID == providerID }
-                ))
-                for category in existingCategories { context.delete(category) }
-
-                // Fetch data from network (off main thread)
-                switch provider.type {
-                case .m3u:
-                    let parsed = try await fetchM3UData(url: provider.url)
-                    insertM3UChannels(parsed, provider: provider, context: context)
-                case .xtream:
-                    let data = try await fetchXtreamData(provider: provider)
-                    insertXtreamChannels(data, provider: provider, context: context)
-                }
-
-                try context.save()
-                provider.lastRefresh = Date()
+            let items: [ChannelImporter.ImportedChannel]
+            switch provider.type {
+            case .m3u:
+                items = try await fetchM3UData(url: provider.url)
+            case .xtream:
+                items = try await fetchXtreamData(
+                    baseURL: provider.xtreamBaseURL ?? "",
+                    username: provider.username,
+                    password: provider.password
+                )
             }
 
-            currentProviderID = providerID
-            loadCategoriesSync(providerID: providerID, context: context)
-            channels = []
+            let count = try await importer.replaceChannels(providerID: providerID, with: items)
 
+            // Bail if the user switched provider while we were fetching.
+            guard currentProviderID == providerID else { return }
+            provider.channelCount = count
+            provider.lastRefresh = Date()
+            try? context.save()
+
+            await reloadCategories(providerID: providerID)
+            reloadToken += 1
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
 
-        isLoading = false
+    private func reloadCategories(providerID: UUID) async {
+        guard let importer else { return }
+        do {
+            let summary = try await importer.categorySummary(providerID: providerID)
+            guard currentProviderID == providerID else { return }
+            categoryCounts = summary.counts
+            categories = summary.counts.keys.sorted()
+            totalChannelCount = summary.total
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     // Network fetching — runs off main thread
-    private nonisolated func fetchM3UData(url: String) async throws -> [M3UParser.ParsedChannel] {
+    private nonisolated func fetchM3UData(url: String) async throws -> [ChannelImporter.ImportedChannel] {
         guard let m3uURL = URL(string: url) else { throw M3UParserError.invalidURL }
-        return try await M3UParser.parse(url: m3uURL)
+        let parsed = try await M3UParser.parse(url: m3uURL)
+        return parsed.map {
+            ChannelImporter.ImportedChannel(
+                name: $0.name, streamURL: $0.streamURL, logoURL: $0.logoURL,
+                groupTitle: $0.groupTitle, tvgId: $0.tvgId, tvgName: $0.tvgName
+            )
+        }
     }
 
-    private nonisolated func fetchXtreamData(provider: Provider) async throws -> (categories: [XtreamService.XtreamCategory], streams: [XtreamService.XtreamStream]) {
-        guard let baseURL = provider.xtreamBaseURL else { throw XtreamError.invalidURL }
-        let service = XtreamService(baseURL: baseURL, username: provider.username, password: provider.password)
+    private nonisolated func fetchXtreamData(baseURL: String, username: String, password: String) async throws -> [ChannelImporter.ImportedChannel] {
+        guard !baseURL.isEmpty else { throw XtreamError.invalidURL }
+        let service = XtreamService(baseURL: baseURL, username: username, password: password)
         _ = try await service.authenticate()
         let cats = try await service.getLiveCategories()
         let streams = try await service.getLiveStreams()
-        return (cats, streams)
-    }
-
-    // Insert into context — main thread only
-    private func insertM3UChannels(_ parsed: [M3UParser.ParsedChannel], provider: Provider, context: ModelContext) {
-        var seenCategories = Set<String>()
-        for (index, item) in parsed.enumerated() {
-            let channel = Channel(
-                name: item.name, streamURL: item.streamURL, logoURL: item.logoURL,
-                groupTitle: item.groupTitle, tvgId: item.tvgId, tvgName: item.tvgName,
-                providerID: provider.id, channelNumber: index + 1
-            )
-            context.insert(channel)
-            if seenCategories.insert(item.groupTitle).inserted {
-                context.insert(ChannelCategory(name: item.groupTitle, providerID: provider.id))
-            }
-        }
-        provider.channelCount = parsed.count
-    }
-
-    private func insertXtreamChannels(_ data: (categories: [XtreamService.XtreamCategory], streams: [XtreamService.XtreamStream]), provider: Provider, context: ModelContext) {
-        guard let baseURL = provider.xtreamBaseURL else { return }
-        let service = XtreamService(baseURL: baseURL, username: provider.username, password: provider.password)
 
         var categoryMap: [String: String] = [:]
-        for cat in data.categories {
-            if let id = cat.categoryId, let name = cat.categoryName {
-                categoryMap[id] = name
-                context.insert(ChannelCategory(name: name, providerID: provider.id))
-            }
+        for cat in cats {
+            if let id = cat.categoryId, let name = cat.categoryName { categoryMap[id] = name }
         }
-
-        var count = 0
-        for (index, stream) in data.streams.enumerated() {
-            guard let streamId = stream.streamId, let name = stream.name else { continue }
-            let groupTitle = categoryMap[stream.categoryId ?? ""] ?? "Uncategorized"
-            let channel = Channel(
+        return streams.compactMap { stream in
+            guard let streamId = stream.streamId, let name = stream.name else { return nil }
+            return ChannelImporter.ImportedChannel(
                 name: name, streamURL: service.streamURL(for: streamId),
-                logoURL: stream.streamIcon ?? "", groupTitle: groupTitle,
-                tvgId: stream.epgChannelId ?? "", tvgName: name,
-                providerID: provider.id, channelNumber: index + 1
+                logoURL: stream.streamIcon ?? "",
+                groupTitle: categoryMap[stream.categoryId ?? ""] ?? "Uncategorized",
+                tvgId: stream.epgChannelId ?? "", tvgName: name
             )
-            context.insert(channel)
-            count += 1
-        }
-        provider.channelCount = count
-    }
-
-    // Synchronous category loading (main thread)
-    private func loadCategoriesSync(providerID: UUID, context: ModelContext) {
-        do {
-            // Single query: fetch all channels and count per category in memory
-            var descriptor = FetchDescriptor<Channel>(
-                predicate: #Predicate { $0.providerID == providerID }
-            )
-            descriptor.propertiesToFetch = [\.groupTitle]
-            let allChannels = try context.fetch(descriptor)
-
-            totalChannelCount = allChannels.count
-
-            var counts: [String: Int] = [:]
-            for channel in allChannels {
-                counts[channel.groupTitle, default: 0] += 1
-            }
-
-            let catNames = counts.keys.sorted()
-            categoryCounts = counts
-            categories = catNames
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 
@@ -211,14 +186,7 @@ final class ProviderManager {
     }
 
     func refreshProvider(_ provider: Provider) async {
-        guard let context = modelContext else { return }
-        provider.lastRefresh = nil
-        let providerID = provider.id
-        let existing = (try? context.fetch(FetchDescriptor<Channel>(
-            predicate: #Predicate { $0.providerID == providerID }
-        ))) ?? []
-        for ch in existing { context.delete(ch) }
-        await loadChannels(for: provider)
+        await loadChannels(for: provider, forceRefresh: true)
     }
 
     func currentProgram(for channel: Channel) -> EPGProgram? {

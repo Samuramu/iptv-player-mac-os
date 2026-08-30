@@ -191,6 +191,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
 
     func play(url: URL) {
         logger.log("play(url: \(url.absoluteString))")
+        isUserPaused = false
         if player.isPlaying {
             player.stop()
         }
@@ -348,17 +349,36 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         play(url: url)
     }
 
+    /// Set while the user has explicitly paused, so VLC's stray time/state
+    /// callbacks and the stall/buffer recovery timers don't flip us back to "playing".
+    private(set) var isUserPaused = false
+
     func togglePlayPause() {
-        if isPlaying {
-            player.pause()
+        if isUserPaused {
+            isUserPaused = false
+            if duration <= 0, let urlString = activeURLString, let url = URL(string: urlString) {
+                // Live stream: resuming a stale buffer usually stalls, so rejoin at the live edge.
+                logger.log("Resume live stream from live edge")
+                play(url: url)
+            } else {
+                player.play()
+                isPlaying = true
+            }
         } else {
-            player.play()
+            isUserPaused = true
+            isPlaying = false
+            isBuffering = false
+            statusMessage = nil
+            cancelStallTimer()
+            cancelBufferRetryTimer()
+            player.pause()
+            allowSleep()
         }
-        isPlaying.toggle()
     }
 
     func stop() {
         player.stop()
+        isUserPaused = false
         isPlaying = false
         statusMessage = nil
         isBuffering = false
@@ -389,6 +409,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         lastReportedState = state
 
         Task { @MainActor in
+            if isUserPaused && state != .error { return }
             let stateNames: [VLCMediaPlayerState: String] = [
                 .playing: "playing", .buffering: "buffering", .paused: "paused",
                 .stopped: "stopped", .ended: "ended", .error: "error", .opening: "opening"
@@ -468,7 +489,7 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
         lastTimeUpdate = now
 
         Task { @MainActor in
-            guard let vlcPlayer = aNotification.object as? VLCMediaPlayer else { return }
+            guard let vlcPlayer = aNotification.object as? VLCMediaPlayer, !isUserPaused else { return }
             let time = vlcPlayer.time
             currentTime = Double(time.intValue) / 1000.0
             if let media = vlcPlayer.media {

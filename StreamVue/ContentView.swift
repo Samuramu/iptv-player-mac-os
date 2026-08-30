@@ -89,38 +89,19 @@ struct ContentView: View {
                 await providerManager.loadChannels(for: provider)
             }
         }
-        .onChange(of: selectedCategory) { _, newCategory in
-            if let newCategory {
-                if newCategory == "Favorites" {
-                    let favoriteIDs = Set(favorites.map(\.channelID))
-                    providerManager.fetchChannels(category: nil)
-                    providerManager.channels = providerManager.channels.filter {
-                        favoriteIDs.contains($0.id)
-                    }
-                } else {
-                    providerManager.fetchChannels(category: newCategory)
-                }
-            } else {
-                providerManager.channels = []
-            }
+        .onChange(of: selectedCategory) { _, _ in
+            reloadChannelList()
         }
-        .onChange(of: searchText) { _, newText in
-            if newText.isEmpty {
-                if let selectedCategory {
-                    if selectedCategory == "Favorites" {
-                        let favoriteIDs = Set(favorites.map(\.channelID))
-                        providerManager.fetchChannels(category: nil)
-                        providerManager.channels = providerManager.channels.filter {
-                            favoriteIDs.contains($0.id)
-                        }
-                    } else {
-                        providerManager.fetchChannels(category: selectedCategory)
-                    }
-                } else {
-                    providerManager.channels = []
-                }
-            } else {
-                providerManager.searchChannels(text: newText)
+        .onChange(of: searchText) { _, _ in
+            reloadChannelList()
+        }
+        .onChange(of: providerManager.reloadToken) { _, _ in
+            // Background import finished: re-run the current query and re-resolve the
+            // selected channel against the fresh objects (IDs are preserved across refreshes).
+            reloadChannelList()
+            if let current = selectedChannel,
+               let fresh = providerManager.channels.first(where: { $0.id == current.id }) {
+                selectedChannel = fresh
             }
         }
         .onChange(of: selectedChannel) { oldChannel, newChannel in
@@ -134,12 +115,28 @@ struct ContentView: View {
         }
         .onChange(of: favorites.count) { _, _ in
             if selectedCategory == "Favorites" {
-                let favoriteIDs = Set(favorites.map(\.channelID))
-                providerManager.fetchChannels(category: nil)
-                providerManager.channels = providerManager.channels.filter {
-                    favoriteIDs.contains($0.id)
-                }
+                reloadChannelList()
             }
+        }
+    }
+
+    private func reloadChannelList() {
+        if !searchText.isEmpty {
+            providerManager.searchChannels(text: searchText)
+            return
+        }
+        guard let selectedCategory else {
+            providerManager.channels = []
+            return
+        }
+        if selectedCategory == "Favorites" {
+            let favoriteIDs = Set(favorites.map(\.channelID))
+            providerManager.fetchChannels(category: nil)
+            providerManager.channels = providerManager.channels.filter {
+                favoriteIDs.contains($0.id)
+            }
+        } else {
+            providerManager.fetchChannels(category: selectedCategory)
         }
     }
 }

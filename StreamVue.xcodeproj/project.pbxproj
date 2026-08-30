@@ -20,6 +20,7 @@
 		A10000010 /* XtreamService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010 /* XtreamService.swift */; };
 		A10000011 /* EPGParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000011 /* EPGParser.swift */; };
 		A10000012 /* ProviderManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000012 /* ProviderManager.swift */; };
+		A10000099 /* ChannelImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000099 /* ChannelImporter.swift */; };
 		A10000013 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000013 /* ImageCache.swift */; };
 		A10000014 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000014 /* SidebarView.swift */; };
 		A10000015 /* ProviderRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000015 /* ProviderRow.swift */; };
@@ -53,6 +54,7 @@
 		A20000010 /* XtreamService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtreamService.swift; sourceTree = "<group>"; };
 		A20000011 /* EPGParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGParser.swift; sourceTree = "<group>"; };
 		A20000012 /* ProviderManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderManager.swift; sourceTree = "<group>"; };
+		A20000099 /* ChannelImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelImporter.swift; sourceTree = "<group>"; };
 		A20000013 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
 		A20000014 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		A20000015 /* ProviderRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderRow.swift; sourceTree = "<group>"; };
@@ -125,6 +127,7 @@
 				A20000010 /* XtreamService.swift */,
 				A20000011 /* EPGParser.swift */,
 				A20000012 /* ProviderManager.swift */,
+				A20000099 /* ChannelImporter.swift */,
 				A20000013 /* ImageCache.swift */,
 			);
 			path = Services;
@@ -293,6 +296,7 @@
 				A10000010 /* XtreamService.swift in Sources */,
 				A10000011 /* EPGParser.swift in Sources */,
 				A10000012 /* ProviderManager.swift in Sources */,
+				A10000099 /* ChannelImporter.swift in Sources */,
 				A10000013 /* ImageCache.swift in Sources */,
 				A10000014 /* SidebarView.swift in Sources */,
 				A10000015 /* ProviderRow.swift in Sources */,

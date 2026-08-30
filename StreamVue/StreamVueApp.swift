@@ -34,15 +34,12 @@ struct StreamVueApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {}
             CommandMenu("Playback") {
-                Button("Play/Pause") {}
-                    .keyboardShortcut(" ", modifiers: [])
-                Button("Next Channel") {}
-                    .keyboardShortcut(.downArrow, modifiers: [])
-                Button("Previous Channel") {}
-                    .keyboardShortcut(.upArrow, modifiers: [])
+                Button("Play/Pause") { PlaybackCommands.post(.playPause) }
+                Button("Next Channel") { PlaybackCommands.post(.nextChannel) }
+                Button("Previous Channel") { PlaybackCommands.post(.previousChannel) }
                 Divider()
-                Button("Toggle Fullscreen") {}
-                    .keyboardShortcut("f", modifiers: [])
+                Button("Toggle Fullscreen") { PlaybackCommands.post(.toggleFullscreen) }
+                Text("Shortcuts: Space, ↑/↓, ←/→ volume, F fullscreen, Esc exit")
             }
         }
     }

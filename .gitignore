@@ -17,3 +17,6 @@ xcuserdata/
 
 # Claude
 .claude/
+
+# Installer output
+dist/
