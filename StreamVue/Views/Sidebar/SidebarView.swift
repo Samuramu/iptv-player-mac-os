@@ -9,6 +9,7 @@ struct SidebarView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Query private var providers: [Provider]
+    @Query private var favorites: [Favorite]
 
     var body: some View {
         List(selection: $selectedCategory) {
@@ -49,7 +50,7 @@ struct SidebarView: View {
                     )
                     .tag("All Channels" as String?)
 
-                    CategoryRow(name: "Favorites", icon: "star.fill", count: 0)
+                    CategoryRow(name: "Favorites", icon: "star.fill", count: favorites.count)
                         .tag("Favorites" as String?)
 
                     ForEach(providerManager.categories, id: \.self) { category in

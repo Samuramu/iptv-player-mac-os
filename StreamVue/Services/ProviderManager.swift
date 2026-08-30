@@ -167,16 +167,15 @@ final class ProviderManager {
 
     func fetchFavorites(ids: Set<UUID>) {
         guard let context = modelContext, let providerID = currentProviderID else { return }
-        let idList = Array(ids)
-        do {
-            let descriptor = FetchDescriptor<Channel>(
-                predicate: #Predicate { $0.providerID == providerID && idList.contains($0.id) },
-                sortBy: [SortDescriptor(\.channelNumber)]
+        var result: [Channel] = []
+        for id in ids {
+            var descriptor = FetchDescriptor<Channel>(
+                predicate: #Predicate { $0.id == id && $0.providerID == providerID }
             )
-            channels = try context.fetch(descriptor)
-        } catch {
-            errorMessage = error.localizedDescription
+            descriptor.fetchLimit = 1
+            if let ch = try? context.fetch(descriptor).first { result.append(ch) }
         }
+        channels = result.sorted { $0.channelNumber < $1.channelNumber }
     }
 
     func searchChannels(text: String) {
