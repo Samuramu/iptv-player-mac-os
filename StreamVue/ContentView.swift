@@ -130,11 +130,7 @@ struct ContentView: View {
             return
         }
         if selectedCategory == "Favorites" {
-            let favoriteIDs = Set(favorites.map(\.channelID))
-            providerManager.fetchChannels(category: nil)
-            providerManager.channels = providerManager.channels.filter {
-                favoriteIDs.contains($0.id)
-            }
+            providerManager.fetchFavorites(ids: Set(favorites.map(\.channelID)))
         } else {
             providerManager.fetchChannels(category: selectedCategory)
         }

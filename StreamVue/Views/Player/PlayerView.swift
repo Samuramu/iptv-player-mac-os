@@ -356,8 +356,8 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
     func togglePlayPause() {
         if isUserPaused {
             isUserPaused = false
-            if duration <= 0, let urlString = activeURLString, let url = URL(string: urlString) {
-                // Live stream: resuming a stale buffer usually stalls, so rejoin at the live edge.
+            if duration <= 0 || !player.canPause, let urlString = activeURLString, let url = URL(string: urlString) {
+                // Live stream: rejoin at the live edge rather than resuming a stale buffer.
                 logger.log("Resume live stream from live edge")
                 play(url: url)
             } else {
@@ -368,11 +368,23 @@ final class PlayerState: NSObject, VLCMediaPlayerDelegate {
             isUserPaused = true
             isPlaying = false
             isBuffering = false
-            statusMessage = nil
+            statusMessage = "Paused"
             cancelStallTimer()
             cancelBufferRetryTimer()
-            player.pause()
             allowSleep()
+            if player.canPause {
+                player.pause()
+                // Some live feeds report canPause but ignore it — verify and fall back to stop.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                    guard let self, self.isUserPaused, self.player.isPlaying else { return }
+                    self.logger.log("pause() ignored by stream, stopping instead", level: "WARN")
+                    self.player.stop()
+                }
+            } else {
+                // Live streams can't be paused; stop and rejoin the live edge on play.
+                logger.log("Stream is not pausable, stopping")
+                player.stop()
+            }
         }
     }
 
