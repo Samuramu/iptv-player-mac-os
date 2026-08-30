@@ -43,15 +43,15 @@ struct SidebarView: View {
 
             if !providerManager.categories.isEmpty {
                 Section("Categories (\(providerManager.categories.count))") {
-                    CategoryRow(
-                        name: "All Channels",
-                        icon: "tv",
-                        count: providerManager.totalChannelCount
-                    )
-                    .tag("All Channels" as String?)
-
-                    CategoryRow(name: "Favorites", icon: "star.fill", count: favorites.count)
-                        .tag("Favorites" as String?)
+                    // Static rows must live in a ForEach for macOS List selection to work.
+                    ForEach(["All Channels", "Favorites"], id: \.self) { special in
+                        CategoryRow(
+                            name: special,
+                            icon: special == "Favorites" ? "star.fill" : "tv",
+                            count: special == "Favorites" ? favorites.count : providerManager.totalChannelCount
+                        )
+                        .tag(special as String?)
+                    }
 
                     ForEach(providerManager.categories, id: \.self) { category in
                         CategoryRow(

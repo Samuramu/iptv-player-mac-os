@@ -167,15 +167,20 @@ final class ProviderManager {
 
     func fetchFavorites(ids: Set<UUID>) {
         guard let context = modelContext, let providerID = currentProviderID else { return }
-        var result: [Channel] = []
-        for id in ids {
-            var descriptor = FetchDescriptor<Channel>(
-                predicate: #Predicate { $0.id == id && $0.providerID == providerID }
+        do {
+            // Predicates on a model's custom `id` are unreliable in SwiftData, so scan the
+            // provider's channels (lightweight fetch) and filter in memory.
+            let descriptor = FetchDescriptor<Channel>(
+                predicate: #Predicate { $0.providerID == providerID },
+                sortBy: [SortDescriptor(\.channelNumber)]
             )
-            descriptor.fetchLimit = 1
-            if let ch = try? context.fetch(descriptor).first { result.append(ch) }
+            let all = try context.fetch(descriptor)
+            channels = all.filter { ids.contains($0.id) }
+            StreamLogger.shared.log("Favorites: \(ids.count) stored, \(channels.count) matched")
+        } catch {
+            StreamLogger.shared.log("Favorites fetch failed: \(error)", level: "ERROR")
+            errorMessage = error.localizedDescription
         }
-        channels = result.sorted { $0.channelNumber < $1.channelNumber }
     }
 
     func searchChannels(text: String) {
